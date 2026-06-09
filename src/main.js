@@ -1,5 +1,7 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import started from 'electron-squirrel-startup';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -52,5 +54,97 @@ app.on('window-all-closed', () => {
   }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
+// Register IPC handlers for file system access
+ipcMain.handle('dialog:openDirectory', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (result.canceled) return null;
+  return {
+    path: result.filePaths[0],
+    name: path.basename(result.filePaths[0]),
+  };
+});
+
+ipcMain.handle('fs:readDirectory', async (event, dirPath) => {
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const result = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name.startsWith('$')) continue;
+      result.push({
+        name: entry.name,
+        path: path.join(dirPath, entry.name),
+        isDirectory: entry.isDirectory(),
+      });
+    }
+    return result.sort((a, b) => {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+  } catch (err) {
+    console.error('Error reading directory:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('fs:readFile', async (event, filePath) => {
+  try {
+    return await fs.readFile(filePath, 'utf-8');
+  } catch (err) {
+    console.error('Error reading file:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('fs:saveFile', async (event, filePath, content) => {
+  try {
+    await fs.writeFile(filePath, content, 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error saving file:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('fs:createFile', async (event, filePath) => {
+  try {
+    if (existsSync(filePath)) {
+      throw new Error('File already exists');
+    }
+    await fs.writeFile(filePath, '', 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error creating file:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
+  try {
+    if (existsSync(dirPath)) {
+      throw new Error('Directory already exists');
+    }
+    await fs.mkdir(dirPath, { recursive: true });
+    return true;
+  } catch (err) {
+    console.error('Error creating directory:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('fs:deletePath', async (event, targetPath) => {
+  try {
+    const stat = await fs.stat(targetPath);
+    if (stat.isDirectory()) {
+      await fs.rm(targetPath, { recursive: true, force: true });
+    } else {
+      await fs.unlink(targetPath);
+    }
+    return true;
+  } catch (err) {
+    console.error('Error deleting path:', err);
+    throw err;
+  }
+});

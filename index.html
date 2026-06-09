@@ -2,12 +2,170 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Hello World!</title>
-
+    <title>CWE-Checker Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <h1>💖 Hello World!</h1>
-    <p>Welcome to your Electron application.</p>
+    <div class="app-container">
+      
+      <!-- Activity Bar (Far Left) -->
+      <div class="activity-bar">
+        <div class="top-icons">
+          <button class="activity-btn active" id="btn-explorer" title="Explorer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M16 12h2"/></svg>
+          </button>
+          <button class="activity-btn" id="btn-search" title="Search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+        </div>
+        <div class="bottom-icons">
+          <button class="activity-btn" id="btn-theme" title="Toggle Theme">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </button>
+          <button class="activity-btn" id="btn-settings" title="Settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Primary Sidebar -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">EXPLORER</span>
+          <div class="sidebar-actions" id="sidebar-actions" style="display: none;">
+            <button id="action-new-file" title="New File">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M12 12v6"/></svg>
+            </button>
+            <button id="action-new-folder" title="New Folder">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="M9 13h6"/></svg>
+            </button>
+            <button id="action-collapse-all" title="Collapse All">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Folder view content -->
+        <div class="sidebar-content" id="explorer-content">
+          <!-- Folder Not Opened State -->
+          <div class="no-folder-state" id="no-folder-state">
+            <svg class="no-folder-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+            <p>You have not yet opened a folder.</p>
+            <button class="btn btn-primary" id="btn-open-folder">Open Folder</button>
+          </div>
+          
+          <!-- Opened Folder Workspace Name -->
+          <div class="workspace-header" id="workspace-header" style="display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="workspace-chevron"><path d="m6 9 6 6 6-6"/></svg>
+            <span id="workspace-name">NO WORKSPACE</span>
+          </div>
+          <!-- File Tree -->
+          <div class="file-tree" id="file-tree" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Main Editor Area -->
+      <div class="editor-area">
+        
+        <!-- Tabs Bar -->
+        <div class="tabs-bar" id="tabs-bar">
+          <!-- Dynamically populated tabs -->
+        </div>
+
+        <!-- Editor Container -->
+        <div class="editor-container">
+          
+          <!-- Welcome Screen (When no tabs are open) -->
+          <div class="welcome-screen" id="welcome-screen">
+            <div class="welcome-logo">
+              <span class="gradient-text">CWE-Checker</span>
+            </div>
+            <p class="welcome-subtitle">A professional static analysis code editor & workspace</p>
+            
+            <div class="welcome-sections">
+              <div class="welcome-section">
+                <h3>Start</h3>
+                <div class="welcome-action-item" id="welcome-open-folder">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                  <span>Open Folder...</span>
+                </div>
+                <div class="welcome-action-item disabled" id="welcome-new-file">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M12 12v6"/></svg>
+                  <span>New File (in workspace)</span>
+                </div>
+              </div>
+
+              <div class="welcome-section" id="recent-section" style="display: none;">
+                <h3>Recent Folders</h3>
+                <div class="recent-list" id="recent-projects-list">
+                  <!-- Recent folders will be injected here -->
+                </div>
+              </div>
+            </div>
+            
+            <div class="keyboard-shortcuts">
+              <h3>Useful Shortcuts</h3>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Open Folder</span>
+                <span class="shortcut-key">Ctrl + O</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Save File</span>
+                <span class="shortcut-key">Ctrl + S</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Close Current File</span>
+                <span class="shortcut-key">Ctrl + W</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Code Editor Panel (Hidden by default) -->
+          <div class="code-editor-panel" id="code-editor-panel" style="display: none;">
+            <!-- Breadcrumbs -->
+            <div class="breadcrumbs" id="editor-breadcrumbs">
+              <span class="breadcrumb-item">project</span>
+              <span class="breadcrumb-separator">/</span>
+              <span class="breadcrumb-item active">file.js</span>
+            </div>
+            
+            <!-- Editor Text Area & Line Numbers wrapper -->
+            <div class="editor-workspace">
+              <div class="line-numbers-container">
+                <div class="line-numbers" id="line-numbers">1</div>
+              </div>
+              <textarea class="code-textarea" id="code-textarea" spellcheck="false" placeholder="Write code here..."></textarea>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <div class="status-left">
+            <span class="status-item" id="status-mode">
+              <span class="status-dot"></span>
+              Ready
+            </span>
+            <span class="status-item font-mono" id="status-folder-path" title="No folder open">No Workspace</span>
+          </div>
+          <div class="status-right">
+            <span class="status-item font-mono" id="status-line-col" style="display: none;">Ln 1, Col 1</span>
+            <span class="status-item" id="status-save-btn" style="display: none;">
+              <button class="status-save-button" id="btn-save-file" title="Save file (Ctrl+S)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
+                Save
+              </button>
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
     <script type="module" src="/src/renderer.js"></script>
   </body>
 </html>
