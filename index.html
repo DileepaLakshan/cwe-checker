@@ -517,7 +517,7 @@
     </div>
 
     <div class="results-section">
-      <h3>Dependency Vulnerabilities (Trivy)</h3>
+      <h3>Dependency CWEs (Trivy)</h3>
       <div id="sca-results-container" class="results-list"></div>
     </div>
   </div>
@@ -752,24 +752,29 @@ async function performScan() {
     // FIX: Safely extract the ARRAYS before sending them to be rendered
     const sastIssuesArray = sastResults?.results || [];
     
-    // Trivy groups things by file, so we extract all vulnerability arrays into one flat array
-    let scaIssuesArray = [];
+    // Trivy groups things by file, so extract vulnerabilities and expand their CWE mappings.
+    let trivyVulnerabilities = [];
     if (scaResults?.Results && Array.isArray(scaResults.Results)) {
       scaResults.Results.forEach(target => {
         if (target.Vulnerabilities) {
-          scaIssuesArray = scaIssuesArray.concat(target.Vulnerabilities);
+          trivyVulnerabilities = trivyVulnerabilities.concat(target.Vulnerabilities);
         }
       });
     }
 
+    const cweIssuesArray = trivyVulnerabilities.flatMap(vuln => {
+      const cweIds = Array.isArray(vuln.CweIDs) ? vuln.CweIDs.filter(Boolean) : [];
+      return cweIds.map(cweId => ({ ...vuln, CweID: cweId }));
+    });
+
     // Now call your UI render functions with true arrays!
     renderSASTResults(sastIssuesArray);
-    renderSCAResults(scaIssuesArray);
+    renderSCAResults(cweIssuesArray, trivyVulnerabilities.length);
 
     // Update your summary counts
     document.getElementById('results-summary').innerHTML = `
       <span class="badge">SAST Issues: ${sastIssuesArray.length}</span>
-      <span class="badge">SCA Issues: ${scaIssuesArray.length}</span>
+      <span class="badge">Trivy CWE Issues: ${cweIssuesArray.length}</span>
     `;
 
     document.getElementById('welcome-screen').style.display = 'none';
@@ -803,21 +808,25 @@ function renderSASTResults(issues) {
 }
 
 // 3. Updated clean rendering function for SCA
-function renderSCAResults(vulnerabilities) {
+function renderSCAResults(cweIssues, totalVulnerabilities = 0) {
   const container = document.getElementById('sca-results-container');
 
-  if (vulnerabilities.length === 0) {
-    container.innerHTML = '<div class="no-issues">No dependency vulnerabilities found! 🎉</div>';
+  if (cweIssues.length === 0) {
+    container.innerHTML = `<div class="no-issues">${
+      totalVulnerabilities === 0
+        ? 'No dependency CWE issues found!'
+        : `Trivy found ${totalVulnerabilities} dependency vulnerabilities, but no CWE mappings were included.`
+    }</div>`;
     return;
   }
 
-  container.innerHTML = vulnerabilities.map(vuln => `
+  container.innerHTML = cweIssues.map(vuln => `
     <div class="result-card sca-card">
       <div class="card-header">
         <span class="severity ${vuln.Severity ? vuln.Severity.toLowerCase() : 'low'}">${vuln.Severity || 'UNKNOWN'}</span>
-        <span class="vuln-id">${vuln.VulnerabilityID}</span>
+        <span class="vuln-id">${vuln.CweID}</span>
       </div>
-      <p class="file-path">📦 Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
+      <p class="file-path">Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
       <p class="vuln-desc">${vuln.Title || vuln.Description || 'No description available.'}</p>
     </div>
   `).join('');

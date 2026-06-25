@@ -176,33 +176,41 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
           </div>
         `).join('');
 
-    // 5. Parse Trivy (SCA) Results
-    let scaHits = [];
+    // 5. Parse Trivy (SCA) Results as CWE mappings
+    let trivyVulnerabilities = [];
     if (scaResults.Results) {
       scaResults.Results.forEach(target => {
         if (target.Vulnerabilities) {
-          scaHits = scaHits.concat(target.Vulnerabilities);
+          trivyVulnerabilities = trivyVulnerabilities.concat(target.Vulnerabilities);
         }
       });
     }
+
+    const cweHits = trivyVulnerabilities.flatMap(vuln => {
+      const cweIds = Array.isArray(vuln.CweIDs) ? vuln.CweIDs.filter(Boolean) : [];
+      return cweIds.map(cweId => ({ ...vuln, CweID: cweId }));
+    });
     
-    scaContainer.innerHTML = scaHits.length === 0 
-      ? '<div class="no-issues">No dependency vulnerabilities found! 🎉</div>' 
-      : scaHits.map(vuln => `
+    scaContainer.innerHTML = cweHits.length === 0 
+      ? `<div class="no-issues">${
+          trivyVulnerabilities.length === 0
+            ? 'No dependency CWE issues found!'
+            : `Trivy found ${trivyVulnerabilities.length} dependency vulnerabilities, but no CWE mappings were included.`
+        }</div>` 
+      : cweHits.map(vuln => `
           <div class="result-card sca-card">
             <div class="card-header">
               <span class="severity ${vuln.Severity.toLowerCase()}">${vuln.Severity}</span>
-              <span class="vuln-id">${vuln.VulnerabilityID}</span>
+              <span class="vuln-id">${vuln.CweID}</span>
             </div>
-            <p class="file-path">📦 Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
+            <p class="file-path">Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
             <p class="vuln-desc">${vuln.Title || vuln.Description || 'No description available.'}</p>
           </div>
         `).join('');
-
     // 6. Update Summary & Switch Views
     summaryContainer.innerHTML = `
       <span class="badge">SAST Issues: ${sastHits.length}</span>
-      <span class="badge">SCA Issues: ${scaHits.length}</span>
+      <span class="badge">Trivy CWE Issues: ${cweHits.length}</span>
     `;
 
     // Hide welcome screen and show results
