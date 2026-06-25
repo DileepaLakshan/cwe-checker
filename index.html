@@ -1,171 +1,844 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>CWE-Checker Editor</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div class="app-container">
-      
-      <!-- Activity Bar (Far Left) -->
-      <div class="activity-bar">
-        <div class="top-icons">
-          <button class="activity-btn active" id="btn-explorer" title="Explorer">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M16 12h2"/></svg>
-          </button>
-          <button class="activity-btn" id="btn-search" title="Search">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          </button>
-        </div>
-        <div class="bottom-icons">
-          <button class="activity-btn" id="btn-theme" title="Toggle Theme">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-          </button>
-          <button class="activity-btn" id="btn-settings" title="Settings">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          </button>
-        </div>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CWE-Checker Editor | Scan Results</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .app-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+    /* activity bar */
+    .activity-bar {
+      width: 48px;
+      background: #181825;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-right: 1px solid #313244;
+    }
+    .activity-btn {
+      background: transparent;
+      border: none;
+      color: #6c7086;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 4px 0;
+      transition: all 0.2s;
+    }
+    .activity-btn.active,
+    .activity-btn:hover {
+      color: #cdd6f4;
+      background: #313244;
+    }
+    .top-icons,
+    .bottom-icons {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* sidebar */
+    .sidebar {
+      width: 260px;
+      background: #1e1e2e;
+      border-right: 1px solid #313244;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      transition: width 0.2s;
+    }
+    .sidebar-header {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: #a6adc8;
+    }
+    .sidebar-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .sidebar-actions button {
+      background: transparent;
+      border: none;
+      color: #a6adc8;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sidebar-actions button:hover {
+      background: #313244;
+    }
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .no-folder-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      text-align: center;
+      color: #6c7086;
+    }
+    .no-folder-icon {
+      margin-bottom: 16px;
+      color: #585b70;
+    }
+    .btn {
+      background: #313244;
+      border: none;
+      color: #cdd6f4;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: background 0.2s;
+    }
+    .btn-primary {
+      background: #cba6f7;
+      color: #1e1e2e;
+      font-weight: 600;
+    }
+    .btn-primary:hover {
+      background: #b4befe;
+    }
+    .workspace-header {
+      padding: 6px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #a6adc8;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .file-tree {
+      padding: 4px 0;
+    }
+    /* editor area */
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #1e1e2e;
+      overflow: hidden;
+    }
+    .tabs-bar {
+      height: 36px;
+      background: #181825;
+      display: flex;
+      align-items: center;
+      overflow-x: auto;
+      border-bottom: 1px solid #313244;
+    }
+    .editor-container {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+    }
+    .welcome-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 32px;
+      text-align: center;
+    }
+    .gradient-text {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #cba6f7, #89b4fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .welcome-subtitle {
+      margin-top: 8px;
+      color: #a6adc8;
+    }
+    #scanBtn {
+      margin-top: 24px;
+      background: #a6e3a1;
+      border: none;
+      color: #1e1e2e;
+      font-weight: 600;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    #scanBtn:hover {
+      background: #94e2d5;
+    }
+    .welcome-sections {
+      display: flex;
+      gap: 48px;
+      margin-top: 32px;
+      text-align: left;
+    }
+    .welcome-section h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #a6adc8;
+    }
+    .welcome-action-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      cursor: pointer;
+      color: #cdd6f4;
+    }
+    .welcome-action-item.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .keyboard-shortcuts {
+      margin-top: 32px;
+      color: #6c7086;
+    }
+    .shortcut-row {
+      display: flex;
+      justify-content: space-between;
+      width: 280px;
+      margin: 6px 0;
+    }
+    .status-bar {
+      height: 28px;
+      background: #181825;
+      border-top: 1px solid #313244;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #a6adc8;
+    }
+    .status-left,
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #a6e3a1;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    /* results panel */
+    .results-panel {
+      padding: 16px;
+      background: #1e1e2e;
+      height: 100%;
+      overflow-y: auto;
+    }
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .results-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .result-tab {
+      background: #313244;
+      border: none;
+      color: #cdd6f4;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .result-tab.active {
+      background: #cba6f7;
+      color: #1e1e2e;
+    }
+    .result-card {
+      background: #181825;
+      border: 1px solid #313244;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .result-title {
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+    .badge {
+      background: #f38ba8;
+      color: #1e1e2e;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.medium {
+      background: #fab387;
+    }
+    .badge.low {
+      background: #a6e3a1;
+    }
+    .file-path {
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      color: #89b4fa;
+      margin: 4px 0;
+    }
+    .back-btn {
+      background: transparent;
+      border: 1px solid #6c7086;
+      color: #cdd6f4;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .empty-results {
+      text-align: center;
+      color: #6c7086;
+      margin-top: 48px;
+    }
+
+    /* Scan Results Panel Styles */
+.scan-results-panel {
+  padding: 30px;
+  overflow-y: auto;
+  height: 100%;
+  color: #e1e4e8;
+  background-color: #1e1e1e; /* Match your editor background */
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 10px;
+}
+
+.results-summary {
+  margin-bottom: 30px;
+  display: flex;
+  gap: 15px;
+}
+
+.badge {
+  background-color: #2d2d2d;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  border: 1px solid #444;
+}
+
+.results-section h3 {
+  margin-bottom: 15px;
+  color: #58a6ff;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 40px;
+}
+
+.result-card {
+  background-color: #252526;
+  border: 1px solid #3e3e42;
+  border-radius: 6px;
+  padding: 15px;
+  font-family: 'Inter', sans-serif;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.vuln-id {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9em;
+  color: #8b949e;
+}
+
+.severity {
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.8em;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* Severity Colors */
+.severity.critical { background-color: #f85149; color: white; }
+.severity.high { background-color: #d29922; color: black; }
+.severity.medium { background-color: #d2a8ff; color: black; }
+.severity.low { background-color: #3fb950; color: white; }
+.severity.warning { background-color: #d29922; color: black; } /* SAST default */
+
+.file-path {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85em;
+  color: #a5d6ff;
+  margin-bottom: 8px;
+}
+
+.vuln-desc {
+  font-size: 0.9em;
+  line-height: 1.4;
+  color: #c9d1d9;
+}
+
+.no-issues {
+  padding: 20px;
+  background-color: #1a2e1d;
+  border: 1px solid #3fb950;
+  color: #3fb950;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.btn-secondary {
+  background-color: #3a3a3a;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: #4a4a4a;
+}
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <!-- Activity Bar -->
+  <div class="activity-bar">
+    <div class="top-icons">
+      <button class="activity-btn active" title="Explorer">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
+      </button>
+      <button class="activity-btn" title="Search">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </div>
+    <div class="bottom-icons">
+      <button class="activity-btn" title="Theme">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span>EXPLORER</span>
+      <div class="sidebar-actions" id="sidebar-actions">
+        <button title="New File"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M9 15h6"/></svg></button>
+      </div>
+    </div>
+    <div class="sidebar-content">
+      <div class="no-folder-state" id="no-folder-state">
+        <p style="margin-top: 24px;">No folder opened</p>
+        <button class="btn btn-primary" id="btn-open-folder-side">Open Folder</button>
+      </div>
+      <div class="workspace-header" id="workspace-header" style="display: none;">
+        <span id="workspace-name">WORKSPACE</span>
+      </div>
+      <div class="file-tree" id="file-tree" style="display: none;"></div>
+    </div>
+  </div>
+
+  <div class="scan-results-panel" id="scan-results-panel" style="display: none;">
+    <div class="results-header">
+      <h2>Scan Results</h2>
+      <button id="btn-close-results" class="btn-secondary">Close Results</button>
+    </div>
+    
+    <div class="results-summary" id="results-summary">
       </div>
 
-      <!-- Primary Sidebar -->
-      <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-          <span class="sidebar-title">EXPLORER</span>
-          <div class="sidebar-actions" id="sidebar-actions" style="display: none;">
-            <button id="action-new-file" title="New File">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M12 12v6"/></svg>
-            </button>
-            <button id="action-new-folder" title="New Folder">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="M9 13h6"/></svg>
-            </button>
-            <button id="action-collapse-all" title="Collapse All">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
-            </button>
-          </div>
-        </div>
-        
-        <!-- Folder view content -->
-        <div class="sidebar-content" id="explorer-content">
-          <!-- Folder Not Opened State -->
-          <div class="no-folder-state" id="no-folder-state">
-            <svg class="no-folder-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
-            <p>You have not yet opened a folder.</p>
-            <button class="btn btn-primary" id="btn-open-folder">Open Folder</button>
-          </div>
-          
-          <!-- Opened Folder Workspace Name -->
-          <div class="workspace-header" id="workspace-header" style="display: none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="workspace-chevron"><path d="m6 9 6 6 6-6"/></svg>
-            <span id="workspace-name">NO WORKSPACE</span>
-          </div>
-          <!-- File Tree -->
-          <div class="file-tree" id="file-tree" style="display: none;"></div>
-        </div>
-      </div>
-
-      <!-- Main Editor Area -->
-      <div class="editor-area">
-        
-        <!-- Tabs Bar -->
-        <div class="tabs-bar" id="tabs-bar">
-          <!-- Dynamically populated tabs -->
-        </div>
-
-        <!-- Editor Container -->
-        <div class="editor-container">
-          
-          <!-- Welcome Screen (When no tabs are open) -->
-          <div class="welcome-screen" id="welcome-screen">
-            <div class="welcome-logo">
-              <span class="gradient-text">CWE-Checker</span>
-            </div>
-            <p class="welcome-subtitle">A professional static analysis code editor & workspace</p>
-            <button id="scanBtn">Select Project & Scan</button>
-            <div class="welcome-sections">
-              <div class="welcome-section">
-                <h3>Start</h3>
-                <div class="welcome-action-item" id="welcome-open-folder">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
-                  <span>Open Folder...</span>
-                </div>
-                <div class="welcome-action-item disabled" id="welcome-new-file">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M12 12v6"/></svg>
-                  <span>New File (in workspace)</span>
-                </div>
-              </div>
-
-              <div class="welcome-section" id="recent-section" style="display: none;">
-                <h3>Recent Folders</h3>
-                <div class="recent-list" id="recent-projects-list">
-                  <!-- Recent folders will be injected here -->
-                </div>
-              </div>
-            </div>
-            
-            <div class="keyboard-shortcuts">
-              <h3>Useful Shortcuts</h3>
-              <div class="shortcut-row">
-                <span class="shortcut-desc">Open Folder</span>
-                <span class="shortcut-key">Ctrl + O</span>
-              </div>
-              <div class="shortcut-row">
-                <span class="shortcut-desc">Save File</span>
-                <span class="shortcut-key">Ctrl + S</span>
-              </div>
-              <div class="shortcut-row">
-                <span class="shortcut-desc">Close Current File</span>
-                <span class="shortcut-key">Ctrl + W</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Code Editor Panel (Hidden by default) -->
-          <div class="code-editor-panel" id="code-editor-panel" style="display: none;">
-            <!-- Breadcrumbs -->
-            <div class="breadcrumbs" id="editor-breadcrumbs">
-              <span class="breadcrumb-item">project</span>
-              <span class="breadcrumb-separator">/</span>
-              <span class="breadcrumb-item active">file.js</span>
-            </div>
-            
-            <!-- Editor Text Area & Line Numbers wrapper -->
-            <div class="editor-workspace">
-              <div class="line-numbers-container">
-                <div class="line-numbers" id="line-numbers">1</div>
-              </div>
-              <textarea class="code-textarea" id="code-textarea" spellcheck="false" placeholder="Write code here..."></textarea>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Status Bar -->
-        <div class="status-bar">
-          <div class="status-left">
-            <span class="status-item" id="status-mode">
-              <span class="status-dot"></span>
-              Ready
-            </span>
-            <span class="status-item font-mono" id="status-folder-path" title="No folder open">No Workspace</span>
-          </div>
-          <div class="status-right">
-            <span class="status-item font-mono" id="status-line-col" style="display: none;">Ln 1, Col 1</span>
-            <span class="status-item" id="status-save-btn" style="display: none;">
-              <button class="status-save-button" id="btn-save-file" title="Save file (Ctrl+S)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
-                Save
-              </button>
-            </span>
-          </div>
-        </div>
-
-      </div>
-
+    <div class="results-section">
+      <h3>Source Code Flaws (OpenGrep)</h3>
+      <div id="sast-results-container" class="results-list"></div>
     </div>
 
-    <script type="module" src="/src/renderer.js"></script>
-  </body>
+    <div class="results-section">
+      <h3>Dependency Vulnerabilities (Trivy)</h3>
+      <div id="sca-results-container" class="results-list"></div>
+    </div>
+  </div>
+
+  <!-- Editor Area -->
+  <div class="editor-area">
+    <div class="tabs-bar" id="tabs-bar"></div>
+    <div class="editor-container" id="editor-container">
+      <!-- Welcome / Results dynamic view -->
+      <div id="dynamic-view">
+        <!-- Welcome screen default -->
+        <div class="welcome-screen" id="welcome-screen">
+          <div class="welcome-logo">
+            <span class="gradient-text">CWE-Checker</span>
+          </div>
+          <p class="welcome-subtitle">Static analysis workspace · SAST + SCA</p>
+          <button id="scanBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Select Project & Scan
+          </button>
+          <div class="welcome-sections">
+            <div class="welcome-section">
+              <h3>Start</h3>
+              <div class="welcome-action-item" id="welcome-open-folder">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                <span>Open Folder...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Results panel (hidden initially) -->
+        <div class="results-panel" id="results-panel" style="display: none;">
+          <div class="results-header">
+            <h2>Scan Results</h2>
+            <button class="back-btn" id="backToWelcomeBtn">← Back to Editor</button>
+          </div>
+          <div class="results-tabs">
+            <button class="result-tab active" id="tab-sast">SAST (Semgrep-style)</button>
+            <button class="result-tab" id="tab-sca">SCA (Trivy-style)</button>
+          </div>
+          <div id="results-content">
+            <!-- dynamic results inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="status-left">
+        <span><span class="status-dot"></span> Ready</span>
+        <span id="status-folder-path">No Workspace</span>
+      </div>
+      <div class="status-right">
+        <span id="status-line-col" style="display:none;">Ln 1, Col 1</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  // ----- Mock API for demonstration (replace with real window.scannerAPI) -----
+  // In your Electron app, window.scannerAPI will be available via preload.
+  // This mock simulates the behavior for UI development.
+  if (!window.scannerAPI) {
+    window.scannerAPI = {
+      selectProject: async () => {
+        // Simulate folder selection - returns a dummy path
+        return new Promise((resolve) => {
+          setTimeout(() => resolve('/home/user/my-project'), 200);
+        });
+      },
+      runSAST: async (folder) => {
+        // Mock SAST results
+        return [
+          {
+            ruleId: 'javascript.sqli.security',
+            message: 'Possible SQL injection',
+            severity: 'HIGH',
+            file: 'src/auth.js',
+            line: 24,
+            code: "query('SELECT * FROM users WHERE id = ' + userId)"
+          },
+          {
+            ruleId: 'generic.xss',
+            message: 'Unescaped user input in HTML',
+            severity: 'MEDIUM',
+            file: 'src/components/Profile.jsx',
+            line: 48,
+            code: '<div>{userInput}</div>'
+          }
+        ];
+      },
+      runSCA: async (folder) => {
+        // Mock SCA results
+        return [
+          {
+            vulnerability: 'CVE-2023-1234',
+            package: 'lodash',
+            version: '4.17.15',
+            severity: 'HIGH',
+            title: 'Prototype Pollution',
+            fixedVersion: '4.17.21'
+          },
+          {
+            vulnerability: 'CVE-2022-2345',
+            package: 'axios',
+            version: '0.21.1',
+            severity: 'MEDIUM',
+            title: 'SSRF vulnerability',
+            fixedVersion: '0.21.2'
+          }
+        ];
+      }
+    };
+  }
+
+  // ----- UI Logic -----
+  const scanBtn = document.getElementById('scanBtn');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const resultsPanel = document.getElementById('results-panel');
+  const resultsContent = document.getElementById('results-content');
+  const tabSast = document.getElementById('tab-sast');
+  const tabSca = document.getElementById('tab-sca');
+  const backBtn = document.getElementById('backToWelcomeBtn');
+  const statusFolderPath = document.getElementById('status-folder-path');
+  const workspaceName = document.getElementById('workspace-name');
+  const workspaceHeader = document.getElementById('workspace-header');
+  const noFolderState = document.getElementById('no-folder-state');
+  const sidebarOpenBtn = document.getElementById('btn-open-folder-side');
+  const welcomeOpenFolder = document.getElementById('welcome-open-folder');
+
+  let currentResults = { sast: [], sca: [] };
+  let activeResultTab = 'sast'; // 'sast' or 'sca'
+
+  // Helper to switch between welcome and results view
+  function showWelcome() {
+    welcomeScreen.style.display = 'flex';
+    resultsPanel.style.display = 'none';
+  }
+
+  function showResults() {
+    welcomeScreen.style.display = 'none';
+    resultsPanel.style.display = 'block';
+  }
+
+  // Render results based on active tab
+  function renderResults() {
+    const data = activeResultTab === 'sast' ? currentResults.sast : currentResults.sca;
+    if (!data || data.length === 0) {
+      resultsContent.innerHTML = `<div class="empty-results">No findings detected. Great job! ✅</div>`;
+      return;
+    }
+
+    let html = '';
+    if (activeResultTab === 'sast') {
+      data.forEach((finding) => {
+        html += `
+          <div class="result-card">
+            <div class="result-title">
+              <span>${finding.ruleId || 'Rule'}</span>
+              <span class="badge ${finding.severity?.toLowerCase()}">${finding.severity || 'INFO'}</span>
+            </div>
+            <div style="margin: 6px 0;">${finding.message || 'No description'}</div>
+            <div class="file-path">📄 ${finding.file || 'unknown'}:${finding.line || ''}</div>
+            <code style="font-size:12px; color:#a6adc8;">${finding.code || ''}</code>
+          </div>
+        `;
+      });
+    } else {
+      data.forEach((vuln) => {
+        html += `
+          <div class="result-card">
+            <div class="result-title">
+              <span>${vuln.package || 'package'}@${vuln.version || '?'}</span>
+              <span class="badge ${vuln.severity?.toLowerCase()}">${vuln.severity || 'INFO'}</span>
+            </div>
+            <div><strong>${vuln.vulnerability || 'CVE'}</strong>: ${vuln.title || 'Vulnerability'}</div>
+            <div style="margin-top:6px;">🔧 Fix: ${vuln.fixedVersion ? 'Upgrade to ' + vuln.fixedVersion : 'N/A'}</div>
+          </div>
+        `;
+      });
+    }
+    resultsContent.innerHTML = html;
+  }
+
+  // Switch tabs
+  tabSast.addEventListener('click', () => {
+    activeResultTab = 'sast';
+    tabSast.classList.add('active');
+    tabSca.classList.remove('active');
+    renderResults();
+  });
+
+  tabSca.addEventListener('click', () => {
+    activeResultTab = 'sca';
+    tabSca.classList.add('active');
+    tabSast.classList.remove('active');
+    renderResults();
+  });
+
+  // Back button
+  backBtn.addEventListener('click', () => {
+    showWelcome();
+  });
+
+  // Update UI with folder path
+  function updateWorkspacePath(folderPath) {
+    if (folderPath) {
+      statusFolderPath.textContent = folderPath;
+      workspaceName.textContent = folderPath.split('/').pop() || 'PROJECT';
+      workspaceHeader.style.display = 'flex';
+      noFolderState.style.display = 'none';
+    }
+  }
+
+  // Main scan action
+  // 1. Your main scan runner
+async function performScan() {
+  try {
+    const projectFolder = await window.scannerAPI.selectProject();
+    if (!projectFolder) return;
+
+    console.log(`Starting scans on: ${projectFolder}...`);
+
+    const [sastResults, scaResults] = await Promise.all([
+      window.scannerAPI.runSAST(projectFolder),
+      window.scannerAPI.runSCA(projectFolder)
+    ]);
+
+    console.log("SAST Results:", sastResults);
+    console.log("SCA Results:", scaResults);
+
+    // FIX: Safely extract the ARRAYS before sending them to be rendered
+    const sastIssuesArray = sastResults?.results || [];
+    
+    // Trivy groups things by file, so we extract all vulnerability arrays into one flat array
+    let scaIssuesArray = [];
+    if (scaResults?.Results && Array.isArray(scaResults.Results)) {
+      scaResults.Results.forEach(target => {
+        if (target.Vulnerabilities) {
+          scaIssuesArray = scaIssuesArray.concat(target.Vulnerabilities);
+        }
+      });
+    }
+
+    // Now call your UI render functions with true arrays!
+    renderSASTResults(sastIssuesArray);
+    renderSCAResults(scaIssuesArray);
+
+    // Update your summary counts
+    document.getElementById('results-summary').innerHTML = `
+      <span class="badge">SAST Issues: ${sastIssuesArray.length}</span>
+      <span class="badge">SCA Issues: ${scaIssuesArray.length}</span>
+    `;
+
+    document.getElementById('welcome-screen').style.display = 'none';
+    document.getElementById('scan-results-panel').style.display = 'block';
+
+  } catch (error) {
+    console.error("Scanning failed:", error);
+  }
+}
+
+// 2. Updated clean rendering function for SAST
+function renderSASTResults(issues) {
+  const container = document.getElementById('sast-results-container');
+  
+  if (issues.length === 0) {
+    container.innerHTML = '<div class="no-issues">No source code issues found! 🎉</div>';
+    return;
+  }
+
+  // Now .map / .forEach will work perfectly because 'issues' is guaranteed to be an array
+  container.innerHTML = issues.map(hit => `
+    <div class="result-card sast-card">
+      <div class="card-header">
+        <span class="severity warning">Warning</span>
+        <span class="vuln-id">${hit.check_id}</span>
+      </div>
+      <p class="file-path">📁 ${hit.path} (Line: ${hit.start.line})</p>
+      <p class="vuln-desc">${hit.extra.message}</p>
+    </div>
+  `).join('');
+}
+
+// 3. Updated clean rendering function for SCA
+function renderSCAResults(vulnerabilities) {
+  const container = document.getElementById('sca-results-container');
+
+  if (vulnerabilities.length === 0) {
+    container.innerHTML = '<div class="no-issues">No dependency vulnerabilities found! 🎉</div>';
+    return;
+  }
+
+  container.innerHTML = vulnerabilities.map(vuln => `
+    <div class="result-card sca-card">
+      <div class="card-header">
+        <span class="severity ${vuln.Severity ? vuln.Severity.toLowerCase() : 'low'}">${vuln.Severity || 'UNKNOWN'}</span>
+        <span class="vuln-id">${vuln.VulnerabilityID}</span>
+      </div>
+      <p class="file-path">📦 Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
+      <p class="vuln-desc">${vuln.Title || vuln.Description || 'No description available.'}</p>
+    </div>
+  `).join('');
+}
+
+  // Event listeners for scan buttons and folder openers
+  scanBtn.addEventListener('click', performScan);
+
+  // Sidebar open folder button
+  sidebarOpenBtn?.addEventListener('click', async () => {
+    const folder = await window.scannerAPI.selectProject();
+    if (folder) updateWorkspacePath(folder);
+  });
+
+  welcomeOpenFolder?.addEventListener('click', async () => {
+    const folder = await window.scannerAPI.selectProject();
+    if (folder) updateWorkspacePath(folder);
+  });
+
+  // Initial state
+  showWelcome();
+</script>
+</body>
 </html>

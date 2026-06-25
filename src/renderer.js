@@ -133,6 +133,13 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 document.getElementById('scanBtn').addEventListener('click', async () => {
+  const scanBtn = document.getElementById('scanBtn');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const resultsPanel = document.getElementById('scan-results-panel');
+  const sastContainer = document.getElementById('sast-results-container');
+  const scaContainer = document.getElementById('sca-results-container');
+  const summaryContainer = document.getElementById('results-summary');
+
   try {
     // 1. Ask the user which folder to scan
     const projectFolder = await window.scannerAPI.selectProject();
@@ -142,24 +149,81 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
       return;
     }
 
-    console.log(`Starting scans on: ${projectFolder}...`);
-    // NOTE: In a real app, you would show a loading spinner in the UI here
+    // 2. Update UI to Loading State
+    const originalText = scanBtn.innerText;
+    scanBtn.innerText = "Scanning... (This may take a minute)";
+    scanBtn.disabled = true;
+    scanBtn.style.opacity = "0.7";
 
-    // 2. Run both scans simultaneously using Promise.all for speed
+    // 3. Run both scans simultaneously
     const [sastResults, scaResults] = await Promise.all([
       window.scannerAPI.runSAST(projectFolder),
       window.scannerAPI.runSCA(projectFolder)
     ]);
 
-    // 3. Check your DevTools console to see the massive JSON output!
-    console.log("SAST (OpenGrep) Results:", sastResults);
-    console.log("SCA (Trivy) Results:", scaResults);
+    // 4. Parse OpenGrep (SAST) Results
+    const sastHits = sastResults.results || [];
+    sastContainer.innerHTML = sastHits.length === 0 
+      ? '<div class="no-issues">No source code issues found! 🎉</div>' 
+      : sastHits.map(hit => `
+          <div class="result-card sast-card">
+            <div class="card-header">
+              <span class="severity warning">Warning</span>
+              <span class="vuln-id">${hit.check_id}</span>
+            </div>
+            <p class="file-path">📁 ${hit.path} (Line: ${hit.start.line})</p>
+            <p class="vuln-desc">${hit.extra.message}</p>
+          </div>
+        `).join('');
 
-    // 4. Hide loading spinner and start mapping this data to your UI tables/charts
+    // 5. Parse Trivy (SCA) Results
+    let scaHits = [];
+    if (scaResults.Results) {
+      scaResults.Results.forEach(target => {
+        if (target.Vulnerabilities) {
+          scaHits = scaHits.concat(target.Vulnerabilities);
+        }
+      });
+    }
+    
+    scaContainer.innerHTML = scaHits.length === 0 
+      ? '<div class="no-issues">No dependency vulnerabilities found! 🎉</div>' 
+      : scaHits.map(vuln => `
+          <div class="result-card sca-card">
+            <div class="card-header">
+              <span class="severity ${vuln.Severity.toLowerCase()}">${vuln.Severity}</span>
+              <span class="vuln-id">${vuln.VulnerabilityID}</span>
+            </div>
+            <p class="file-path">📦 Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
+            <p class="vuln-desc">${vuln.Title || vuln.Description || 'No description available.'}</p>
+          </div>
+        `).join('');
+
+    // 6. Update Summary & Switch Views
+    summaryContainer.innerHTML = `
+      <span class="badge">SAST Issues: ${sastHits.length}</span>
+      <span class="badge">SCA Issues: ${scaHits.length}</span>
+    `;
+
+    // Hide welcome screen and show results
+    welcomeScreen.style.display = 'none';
+    resultsPanel.style.display = 'block';
 
   } catch (error) {
     console.error("Scanning failed:", error);
+    alert("Scan failed. Check the developer console for details.");
+  } finally {
+    // Reset button state
+    scanBtn.innerText = "Select Project & Scan";
+    scanBtn.disabled = false;
+    scanBtn.style.opacity = "1";
   }
+});
+
+// Add listener to close results and go back to welcome screen
+document.getElementById('btn-close-results')?.addEventListener('click', () => {
+  document.getElementById('scan-results-panel').style.display = 'none';
+  document.getElementById('welcome-screen').style.display = 'flex';
 });
 // ==========================================================================
 // Folder Picker & Workspace Management
