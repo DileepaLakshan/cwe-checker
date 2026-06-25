@@ -512,7 +512,7 @@
       </div>
 
     <div class="results-section">
-      <h3>Source Code Flaws (OpenGrep)</h3>
+      <h3>Source Code CWEs (OpenGrep)</h3>
       <div id="sast-results-container" class="results-list"></div>
     </div>
 
@@ -733,6 +733,31 @@
   }
 
   // Main scan action
+function collectCweIds(metadata = {}, fallbackId = '') {
+  const ids = new Set();
+  const values = [metadata.cwe, metadata.cwe_id, metadata.cwe_ids, metadata.CWE, metadata.CweID, fallbackId];
+
+  const visit = (value) => {
+    if (!value) return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(visit);
+      return;
+    }
+
+    const matches = String(value).match(/CWE[-_:\s]*\d+/gi) || [];
+    matches.forEach(match => {
+      const number = match.replace(/\D/g, '');
+      if (number) ids.add(`CWE-${number}`);
+    });
+  };
+
+  values.forEach(visit);
+  return [...ids];
+}
   // 1. Your main scan runner
 async function performScan() {
   try {
@@ -751,6 +776,11 @@ async function performScan() {
 
     // FIX: Safely extract the ARRAYS before sending them to be rendered
     const sastIssuesArray = sastResults?.results || [];
+    const sastCweIssuesArray = sastIssuesArray.flatMap(hit => {
+      const cweIds = collectCweIds(hit.extra?.metadata, hit.check_id);
+      const idsToShow = cweIds.length > 0 ? cweIds : ['CWE not mapped'];
+      return idsToShow.map(cweId => ({ ...hit, CweID: cweId }));
+    });
     
     // Trivy groups things by file, so extract vulnerabilities and expand their CWE mappings.
     let trivyVulnerabilities = [];
@@ -768,12 +798,12 @@ async function performScan() {
     });
 
     // Now call your UI render functions with true arrays!
-    renderSASTResults(sastIssuesArray);
+    renderSASTResults(sastCweIssuesArray);
     renderSCAResults(cweIssuesArray, trivyVulnerabilities.length);
 
     // Update your summary counts
     document.getElementById('results-summary').innerHTML = `
-      <span class="badge">SAST Issues: ${sastIssuesArray.length}</span>
+      <span class="badge">OpenGrep CWE Findings: ${sastCweIssuesArray.length}</span>
       <span class="badge">Trivy CWE Issues: ${cweIssuesArray.length}</span>
     `;
 
@@ -786,23 +816,23 @@ async function performScan() {
 }
 
 // 2. Updated clean rendering function for SAST
-function renderSASTResults(issues) {
+function renderSASTResults(cweIssues) {
   const container = document.getElementById('sast-results-container');
   
-  if (issues.length === 0) {
-    container.innerHTML = '<div class="no-issues">No source code issues found! 🎉</div>';
+  if (cweIssues.length === 0) {
+    container.innerHTML = '<div class="no-issues">No source code CWE findings found!</div>';
     return;
   }
 
-  // Now .map / .forEach will work perfectly because 'issues' is guaranteed to be an array
-  container.innerHTML = issues.map(hit => `
+  container.innerHTML = cweIssues.map(hit => `
     <div class="result-card sast-card">
       <div class="card-header">
         <span class="severity warning">Warning</span>
-        <span class="vuln-id">${hit.check_id}</span>
+        <span class="vuln-id">${hit.CweID}</span>
       </div>
-      <p class="file-path">📁 ${hit.path} (Line: ${hit.start.line})</p>
-      <p class="vuln-desc">${hit.extra.message}</p>
+      <p class="file-path">File: ${hit.path} (Line: ${hit.start?.line || 'unknown'})</p>
+      <p class="vuln-desc"><b>Reason:</b> ${hit.extra?.message || 'No reason provided by the OpenGrep rule.'}</p>
+      <p class="vuln-desc"><b>Rule:</b> ${hit.check_id}</p>
     </div>
   `).join('');
 }

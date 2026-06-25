@@ -28,6 +28,31 @@
 
 import './index.css';
 
+function collectCweIds(metadata = {}, fallbackId = '') {
+  const ids = new Set();
+  const values = [metadata.cwe, metadata.cwe_id, metadata.cwe_ids, metadata.CWE, metadata.CweID, fallbackId];
+
+  const visit = (value) => {
+    if (!value) return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(visit);
+      return;
+    }
+
+    const matches = String(value).match(/CWE[-_:\s]*\d+/gi) || [];
+    matches.forEach(match => {
+      const number = match.replace(/\D/g, '');
+      if (number) ids.add(`CWE-${number}`);
+    });
+  };
+
+  values.forEach(visit);
+  return [...ids];
+}
 // IDE State variables
 let currentWorkspace = null;
 let activeTab = null;
@@ -161,21 +186,27 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
       window.scannerAPI.runSCA(projectFolder)
     ]);
 
-    // 4. Parse OpenGrep (SAST) Results
+    // 4. Parse OpenGrep (SAST) Results as CWE findings
     const sastHits = sastResults.results || [];
-    sastContainer.innerHTML = sastHits.length === 0 
-      ? '<div class="no-issues">No source code issues found! 🎉</div>' 
-      : sastHits.map(hit => `
+    const sastCweHits = sastHits.flatMap(hit => {
+      const cweIds = collectCweIds(hit.extra?.metadata, hit.check_id);
+      const idsToShow = cweIds.length > 0 ? cweIds : ['CWE not mapped'];
+      return idsToShow.map(cweId => ({ ...hit, CweID: cweId }));
+    });
+
+    sastContainer.innerHTML = sastCweHits.length === 0 
+      ? '<div class="no-issues">No source code CWE findings found!</div>' 
+      : sastCweHits.map(hit => `
           <div class="result-card sast-card">
             <div class="card-header">
               <span class="severity warning">Warning</span>
-              <span class="vuln-id">${hit.check_id}</span>
+              <span class="vuln-id">${hit.CweID}</span>
             </div>
-            <p class="file-path">📁 ${hit.path} (Line: ${hit.start.line})</p>
-            <p class="vuln-desc">${hit.extra.message}</p>
+            <p class="file-path">File: ${hit.path} (Line: ${hit.start?.line || 'unknown'})</p>
+            <p class="vuln-desc"><b>Reason:</b> ${hit.extra?.message || 'No reason provided by the OpenGrep rule.'}</p>
+            <p class="vuln-desc"><b>Rule:</b> ${hit.check_id}</p>
           </div>
         `).join('');
-
     // 5. Parse Trivy (SCA) Results as CWE mappings
     let trivyVulnerabilities = [];
     if (scaResults.Results) {
@@ -209,7 +240,7 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
         `).join('');
     // 6. Update Summary & Switch Views
     summaryContainer.innerHTML = `
-      <span class="badge">SAST Issues: ${sastHits.length}</span>
+      <span class="badge">OpenGrep CWE Findings: ${sastCweHits.length}</span>
       <span class="badge">Trivy CWE Issues: ${cweHits.length}</span>
     `;
 
