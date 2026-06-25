@@ -9,3 +9,10 @@ contextBridge.exposeInMainWorld('api', {
   createDirectory: (dirPath) => ipcRenderer.invoke('fs:createDirectory', dirPath),
   deletePath: (targetPath) => ipcRenderer.invoke('fs:deletePath', targetPath),
 });
+
+
+contextBridge.exposeInMainWorld('scannerAPI', {
+  selectProject: () => ipcRenderer.invoke('dialog:openProject'),
+  runSAST: (folderPath) => ipcRenderer.invoke('scan:sast', folderPath),
+  runSCA: (folderPath) => ipcRenderer.invoke('scan:sca', folderPath)
+});

@@ -1,8 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
-import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import started from 'electron-squirrel-startup';
+import { exec } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -52,6 +52,61 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+function getBinaryPath(binaryName) {
+  const baseDir = app.isPackaged 
+    ? path.join(process.resourcesPath, 'bin', 'win') 
+    // Add an extra '..' here to step out of the .vite/build folder!
+    : path.join(__dirname, '..', '..', 'bin', 'win'); 
+    
+  return path.join(baseDir, binaryName);
+}
+
+// Allow the user to select a project folder to scan
+ipcMain.handle('dialog:openProject', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory']
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+// Handler to run OpenGrep (SAST)
+ipcMain.handle('scan:sast', async (event, targetFolder) => {
+  const opengrepPath = getBinaryPath('opengrep_windows_x86.exe'); 
+  const outputPath = path.join(app.getPath('userData'), 'sast-results.json');
+  const command = `"${opengrepPath}" scan --config auto --json --output "${outputPath}" "${targetFolder}"`;
+
+  return new Promise((resolve, reject) => {
+    exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+      // Look here: 'fs.existsSync' becomes just 'existsSync'
+      if (existsSync(outputPath)) {
+        const rawData = readFileSync(outputPath, 'utf8'); // 'fs.readFileSync' becomes 'readFileSync'
+        resolve(JSON.parse(rawData));
+      } else {
+        reject("Failed to generate SAST results: " + (error || stderr));
+      }
+    });
+  });
+});
+
+// Handler to run Trivy (SCA)
+ipcMain.handle('scan:sca', async (event, targetFolder) => {
+  const trivyPath = getBinaryPath('trivy.exe');
+  const outputPath = path.join(app.getPath('userData'), 'sca-results.json');
+  const command = `"${trivyPath}" fs --format json --output "${outputPath}" "${targetFolder}"`;
+
+  return new Promise((resolve, reject) => {
+    exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+      // Look here: Removed the 'fs.' prefix
+      if (existsSync(outputPath)) {
+        const rawData = readFileSync(outputPath, 'utf8'); 
+        resolve(JSON.parse(rawData));
+      } else {
+        reject("Failed to generate SCA results: " + (error || stderr));
+      }
+    });
+  });
 });
 
 // Register IPC handlers for file system access

@@ -132,6 +132,35 @@ window.addEventListener('DOMContentLoaded', () => {
   renderRecentProjects();
 });
 
+document.getElementById('scanBtn').addEventListener('click', async () => {
+  try {
+    // 1. Ask the user which folder to scan
+    const projectFolder = await window.scannerAPI.selectProject();
+    
+    if (!projectFolder) {
+      console.log("User cancelled folder selection.");
+      return;
+    }
+
+    console.log(`Starting scans on: ${projectFolder}...`);
+    // NOTE: In a real app, you would show a loading spinner in the UI here
+
+    // 2. Run both scans simultaneously using Promise.all for speed
+    const [sastResults, scaResults] = await Promise.all([
+      window.scannerAPI.runSAST(projectFolder),
+      window.scannerAPI.runSCA(projectFolder)
+    ]);
+
+    // 3. Check your DevTools console to see the massive JSON output!
+    console.log("SAST (OpenGrep) Results:", sastResults);
+    console.log("SCA (Trivy) Results:", scaResults);
+
+    // 4. Hide loading spinner and start mapping this data to your UI tables/charts
+
+  } catch (error) {
+    console.error("Scanning failed:", error);
+  }
+});
 // ==========================================================================
 // Folder Picker & Workspace Management
 // ==========================================================================
