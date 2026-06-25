@@ -235,7 +235,9 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
               <span class="vuln-id">${vuln.CweID}</span>
             </div>
             <p class="file-path">Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
-            <p class="vuln-desc">${vuln.Title || vuln.Description || 'No description available.'}</p>
+            <p class="vuln-desc"><b>Reason:</b> ${vuln.Title || vuln.Description || 'No reason provided by Trivy.'}</p>
+            <p class="vuln-desc"><b>Fixed version:</b> ${vuln.FixedVersion || 'Not available'}</p>
+            <p class="vuln-desc"><b>Source vulnerability:</b> ${vuln.VulnerabilityID || 'Not available'}</p>
           </div>
         `).join('');
     // 6. Update Summary & Switch Views
