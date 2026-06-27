@@ -14,5 +14,6 @@ contextBridge.exposeInMainWorld('api', {
 contextBridge.exposeInMainWorld('scannerAPI', {
   selectProject: () => ipcRenderer.invoke('dialog:openProject'),
   runSAST: (folderPath) => ipcRenderer.invoke('scan:sast', folderPath),
-  runSCA: (folderPath) => ipcRenderer.invoke('scan:sca', folderPath)
+  runSCA: (folderPath) => ipcRenderer.invoke('scan:sca', folderPath),
+  locateCweFindings: (projectPath, cweIds) => ipcRenderer.invoke('scan:cwe-locate', projectPath, cweIds)
 });

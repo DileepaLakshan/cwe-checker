@@ -58,6 +58,7 @@ let currentWorkspace = null;
 let activeTab = null;
 let openTabs = []; // { path, name, content, originalContent, isDirty }
 let activeFolderPath = null; // tracking clicked folders for creation context
+let currentProjectPath = null;
 
 // DOM elements initialized on load
 let codeTextarea;
@@ -166,13 +167,17 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
   const summaryContainer = document.getElementById('results-summary');
 
   try {
+    console.log('[renderer] scanBtn clicked');
     // 1. Ask the user which folder to scan
     const projectFolder = await window.scannerAPI.selectProject();
+    console.log('[renderer] selected projectFolder=', projectFolder);
     
     if (!projectFolder) {
       console.log("User cancelled folder selection.");
       return;
     }
+
+    currentProjectPath = projectFolder;
 
     // 2. Update UI to Loading State
     const originalText = scanBtn.innerText;
@@ -185,6 +190,17 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
       window.scannerAPI.runSAST(projectFolder),
       window.scannerAPI.runSCA(projectFolder)
     ]);
+    console.log('[renderer] scan results received', {
+      projectFolder,
+      sastResultsSummary: {
+        hasResults: !!sastResults?.results,
+        resultCount: (sastResults?.results || []).length
+      },
+      scaResultsSummary: {
+        hasResults: !!scaResults?.Results,
+        resultCount: (scaResults?.Results || []).length
+      }
+    });
 
     // 4. Parse OpenGrep (SAST) Results as CWE findings
     const sastHits = sastResults.results || [];
@@ -219,9 +235,18 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
 
     const cweHits = trivyVulnerabilities.flatMap(vuln => {
       const cweIds = Array.isArray(vuln.CweIDs) ? vuln.CweIDs.filter(Boolean) : [];
-      return cweIds.map(cweId => ({ ...vuln, CweID: cweId }));
+      const normalizedIds = cweIds.map(id => String(id).trim()).filter(Boolean);
+      if (normalizedIds.length !== cweIds.length) {
+        console.log('[renderer] normalizing Trivy CWE IDs for vuln', vuln.VulnerabilityID || vuln.Title, { original: cweIds, normalized: normalizedIds });
+      }
+      return normalizedIds.map(cweId => ({ ...vuln, CweID: cweId }));
     });
-    
+    console.log('[renderer] extracted Trivy CWE hits', {
+      trivyVulnerabilitiesCount: trivyVulnerabilities.length,
+      cweHitsCount: cweHits.length,
+      sampleHits: cweHits.slice(0, 5).map(hit => ({ CweID: hit.CweID, VulnerabilityID: hit.VulnerabilityID, PkgName: hit.PkgName }))
+    });
+
     scaContainer.innerHTML = cweHits.length === 0 
       ? `<div class="no-issues">${
           trivyVulnerabilities.length === 0
@@ -240,6 +265,54 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
             <p class="vuln-desc"><b>Source vulnerability:</b> ${vuln.VulnerabilityID || 'Not available'}</p>
           </div>
         `).join('');
+
+    const cweLocationContainer = document.getElementById('cwe-location-results-container');
+    const uniqueCweIds = [...new Set(cweHits.map(v => v.CweID).filter(Boolean))];
+    console.log('[renderer] unique CWE IDs from Trivy results:', uniqueCweIds);
+    console.log('[renderer] cweLocationContainer exists=', !!cweLocationContainer, cweLocationContainer);
+    if (!cweLocationContainer) {
+      console.error('[renderer] missing cwe-location-results-container element');
+    }
+
+    if (cweLocationContainer) {
+      if (uniqueCweIds.length === 0) {
+        console.log('[renderer] no CWE IDs extracted from Trivy results, skipping locate flow', {
+          trivyVulnerabilities,
+          cweHits
+        });
+        cweLocationContainer.innerHTML = '<div class="no-issues">No CWE IDs were extracted from Trivy results to locate in source code.</div>';
+      } else {
+        console.log('[renderer] invoking locateCweFindings for projectFolder=', projectFolder);
+        cweLocationContainer.innerHTML = '<div class="scan-loading">Locating CWE matches in source code...</div>';
+        try {
+          const locateResults = await window.scannerAPI.locateCweFindings(projectFolder, uniqueCweIds);
+          console.log('[renderer] locateCweFindings results=', locateResults);
+          const locateResultSummary = Object.fromEntries(
+            Object.entries(locateResults || {}).map(([cweId, hits]) => [cweId, (hits || []).length])
+          );
+          console.log('[renderer] locateCweFindings summary=', locateResultSummary);
+          const renderedHtml = renderCweLocationResults(locateResults);
+          console.log('[renderer] renderCweLocationResults input=', locateResults);
+          console.log('[renderer] rendered CWE location HTML length=', renderedHtml.length);
+          cweLocationContainer.innerHTML = renderedHtml;
+
+          const hitElements = cweLocationContainer.querySelectorAll('.cwe-location-hit');
+          console.log('[renderer] bind click handlers to CWE hits count=', hitElements.length);
+          hitElements.forEach(item => {
+            item.addEventListener('click', () => {
+              const file = item.getAttribute('data-file');
+              const line = Number(item.getAttribute('data-line')) || null;
+              if (file) {
+                openFileInEditor(file, line);
+              }
+            });
+          });
+        } catch (locateError) {
+          console.error('[renderer] CWE locate failed:', locateError);
+          cweLocationContainer.innerHTML = `<div class="no-issues">Unable to locate CWE findings: ${locateError?.message || locateError}</div>`;
+        }
+      }
+    }
     // 6. Update Summary & Switch Views
     summaryContainer.innerHTML = `
       <span class="badge">OpenGrep CWE Findings: ${sastCweHits.length}</span>
@@ -589,10 +662,13 @@ async function deleteItem(targetPath, name, isDirectory) {
 // ==========================================================================
 // Tabs & Document Editor Handlers
 // ==========================================================================
-async function openFile(filePath) {
+async function openFile(filePath, lineNumber = null) {
   const existingTab = openTabs.find(t => t.path === filePath);
   if (existingTab) {
     switchTab(filePath);
+    if (lineNumber) {
+      scrollToLine(lineNumber);
+    }
     return;
   }
 
@@ -628,10 +704,66 @@ async function openFile(filePath) {
     }
 
     renderTabs();
+    if (lineNumber) {
+      scrollToLine(lineNumber);
+    }
     codeTextarea.focus();
   } catch (err) {
     showStatusBarMessage('Failed to open file: ' + err.message, true);
   }
+}
+
+function openFileInEditor(filePath, lineNumber = null) {
+  return openFile(filePath, lineNumber);
+}
+
+function renderCweLocationResults(resultsByCwe) {
+  console.log('[renderer] renderCweLocationResults called', resultsByCwe);
+  if (!resultsByCwe || Object.keys(resultsByCwe).length === 0) {
+    console.log('[renderer] renderCweLocationResults: no resultsByCwe or empty object');
+    return '<div class="no-issues">No CWE source locations were found.</div>';
+  }
+
+  return Object.entries(resultsByCwe).map(([cweId, hits]) => {
+    if (!hits || hits.length === 0) {
+      return `
+        <div class="result-card cwe-location-card">
+          <div class="card-header">
+            <span class="vuln-id">${cweId}</span>
+          </div>
+          <div class="no-issues">No matching source locations were found for ${cweId}.</div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="result-card cwe-location-card">
+        <div class="card-header">
+          <span class="vuln-id">${cweId}</span>
+          <span class="severity info">${hits.length} matches</span>
+        </div>
+        ${hits.map(hit => `
+          <div class="cwe-location-hit" role="button" tabindex="0" data-file="${hit.file || ''}" data-line="${hit.line || ''}">
+            <p class="file-path"><b>${hit.file || 'Unknown file'}</b>${hit.line ? `:${hit.line}` : ''}</p>
+            <p class="vuln-desc">${hit.message || hit.ruleId || 'No details available'}</p>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+function scrollToLine(lineNumber) {
+  if (!codeTextarea) return;
+  const lines = codeTextarea.value.split('\n');
+  const target = Math.max(1, Math.min(lineNumber, lines.length));
+  let position = 0;
+  for (let i = 1; i < target; i++) {
+    position += lines[i - 1].length + 1;
+  }
+  codeTextarea.selectionStart = codeTextarea.selectionEnd = position;
+  codeTextarea.focus();
+  updateLineCol();
 }
 
 function switchTab(filePath) {
