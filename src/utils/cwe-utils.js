@@ -1,5 +1,5 @@
 /**
- * CWE-related utility functions
+ * CWE Utility Functions
  */
 export function collectCweIds(metadata = {}, fallbackId = '') {
   const ids = new Set();

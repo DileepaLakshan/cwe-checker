@@ -7,6 +7,14 @@ import { initIDEState, getIDEState } from './state/ide-state';
 import { renderRecentProjects } from './components/recent-projects';
 import { initScanButton } from './events/scan-events';
 import { initDOMReferences } from './utils/dom-references';
+import { initComponents } from './components/index.js';
+import { initApp } from './app.js';
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  initComponents();
+  initApp();
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   // Initialize state

@@ -10,6 +10,7 @@ import { addRecentProject } from '../utils/storage';
 import { renderTabs } from '../components/tabs';
 import { loadDirectoryChildren } from './file-tree';
 import { showStatusBarMessage } from '../utils/status-bar';
+import { StatusBar } from '../components/status-bar/status-bar.js';
 
 export async function openDirectoryPicker() {
   try {
@@ -48,4 +49,26 @@ export async function openWorkspace(dirPath, dirName) {
 
   await loadDirectoryChildren(dirPath, dom.fileTree);
   showStatusBarMessage(`Opened Workspace: ${dirName}`);
+}
+
+export function updateWorkspacePath(folderPath) {
+  if (!folderPath) return;
+
+  StatusBar.updateFolderPath(folderPath);
+  
+  // Update workspace header
+  const workspaceHeader = document.getElementById('workspace-header');
+  const workspaceName = document.getElementById('workspace-name');
+  const noFolderState = document.getElementById('no-folder-state');
+  
+  if (workspaceName) {
+    workspaceName.textContent = folderPath.split('/').pop() || 'PROJECT';
+  }
+  
+  if (workspaceHeader) workspaceHeader.style.display = 'flex';
+  if (noFolderState) noFolderState.style.display = 'none';
+  
+  // Show file tree
+  const fileTree = document.getElementById('file-tree');
+  if (fileTree) fileTree.style.display = 'block';
 }

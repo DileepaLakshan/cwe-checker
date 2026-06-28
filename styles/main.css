@@ -1,0 +1,9 @@
+/* Import component stylesheets */
+@import './components/activity-bar.css';
+@import './components/sidebar.css';
+@import './components/welcome-screen.css';
+@import './components/scan-results.css';
+@import './components/status-bar.css';
+@import './components/tabs.css';
+@import './base/reset.css';
+@import './base/variables.css';

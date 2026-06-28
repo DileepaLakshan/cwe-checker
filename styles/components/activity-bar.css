@@ -1,0 +1,37 @@
+.activity-bar {
+  width: 48px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-right: 1px solid var(--border-color);
+}
+
+.activity-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+  transition: all 0.2s;
+}
+
+.activity-btn.active,
+.activity-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.top-icons,
+.bottom-icons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
