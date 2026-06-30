@@ -55,6 +55,7 @@ export class WelcomeScreen {
     });
 
     document.getElementById('welcome-open-folder')?.addEventListener('click', () => {
+      console.log('welcome-screen: open folder clicked');
       window.EventBus?.emit('folder:open');
     });
   }

@@ -64,16 +64,16 @@ function createTabElement(tab, activeTab) {
 
 function showWelcomeScreen() {
   const dom = getDOM();
-  dom.welcomeScreen.style.display = 'flex';
-  dom.editorPanel.style.display = 'none';
-  dom.statusLineCol.style.display = 'none';
-  dom.statusSaveBtn.style.display = 'none';
+  if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'flex';
+  if (dom.editorPanel) dom.editorPanel.style.display = 'none';
+  if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
+  if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
 }
 
 function showEditorScreen() {
   const dom = getDOM();
-  dom.welcomeScreen.style.display = 'none';
-  dom.editorPanel.style.display = 'flex';
-  dom.statusLineCol.style.display = 'flex';
-  dom.statusSaveBtn.style.display = 'flex';
+  if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
+  if (dom.editorPanel) dom.editorPanel.style.display = 'flex';
+  if (dom.statusLineCol) dom.statusLineCol.style.display = 'flex';
+  if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'flex';
 }
