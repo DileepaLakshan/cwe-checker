@@ -12,8 +12,8 @@ import { initApp } from './app.js';
 
 
 document.addEventListener('DOMContentLoaded', () => {
-  initComponents();
-  initApp();
+  initApp();           // ← Initialize EventBus FIRST
+  initComponents();    // ← Then attach component listeners
 });
 
 window.addEventListener('DOMContentLoaded', () => {
