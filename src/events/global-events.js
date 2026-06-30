@@ -11,8 +11,8 @@ import { getCurrentWorkspace } from '../state/ide-state';
 
 export function initEventListeners() {
   // Welcome Screen actions
-  document.getElementById('btn-open-folder').addEventListener('click', openDirectoryPicker);
-  document.getElementById('welcome-open-folder').addEventListener('click', openDirectoryPicker);
+  // Note: `Sidebar` and `WelcomeScreen` components handle their own folder-open clicks
+  // to emit `folder:open` via the EventBus. Do not attach duplicate handlers here.
 
   // Global header actions
   document.getElementById('action-new-file').addEventListener('click', () => showInlineInput('file'));

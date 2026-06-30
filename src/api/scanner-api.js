@@ -3,10 +3,16 @@
  */
 export class ScannerAPI {
   static createMock() {
+    console.log('ScannerAPI.createMock: creating mock API');
     return {
       selectProject: async () => {
+        console.log('ScannerAPI.selectProject (mock): invoked - opening project selector');
         return new Promise((resolve) => {
-          setTimeout(() => resolve('/home/user/my-project'), 200);
+          setTimeout(() => {
+            const result = '/home/user/my-project';
+            console.log('ScannerAPI.selectProject (mock): resolved with', result);
+            resolve(result);
+          }, 200);
         });
       },
       runSAST: async (folder) => {
