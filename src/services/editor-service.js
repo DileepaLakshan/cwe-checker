@@ -38,6 +38,10 @@ export async function openFile(filePath, lineNumber = null) {
     setActiveTab(filePath);
 
     const { codeTextarea, lineNumbersContainer } = getDOM();
+    if (!codeTextarea || !lineNumbersContainer) {
+      console.error('editor-service.openFile: missing editor DOM elements', { codeTextarea, lineNumbersContainer });
+      return;
+    }
     codeTextarea.value = content;
     updateLineNumbers();
     updateLineCol();
