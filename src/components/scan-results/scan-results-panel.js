@@ -1,6 +1,8 @@
 /**
  * Scan Results Panel Component
  */
+import { closeTab } from '../../services/editor-service.js';
+
 export class ScanResultsPanel {
   static init(containerId) {
     const container = document.getElementById(containerId);
@@ -46,8 +48,8 @@ export class ScanResultsPanel {
   }
 
   static attachEventListeners() {
-    document.getElementById('btn-close-results')?.addEventListener('click', () => {
-      window.EventBus?.emit('view:showWelcome');
+    document.getElementById('btn-close-results')?.addEventListener('click', (e) => {
+      closeTab('__SCAN_RESULTS__', e, true);
     });
   }
 

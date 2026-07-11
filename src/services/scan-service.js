@@ -7,6 +7,7 @@ import { StatusBar } from '../components/status-bar/status-bar.js';
 import { collectCweIds, getUniqueCweIds } from '../utils/cwe-utils.js';
 import { getCurrentWorkspace } from '../state/ide-state.js';
 import { openWorkspace } from './workspace-service.js';
+import { openScanResultsTab } from './editor-service.js';
 
 export async function performScan() {
   try {
@@ -24,8 +25,7 @@ export async function performScan() {
     }
 
     StatusBar.updateMode('Scanning...');
-    WelcomeScreen.hide();
-    ScanResultsPanel.show();
+    openScanResultsTab();
     ScanResultsPanel.showLoading();
 
     const [sastResults, scaResults] = await Promise.all([

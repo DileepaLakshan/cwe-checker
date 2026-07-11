@@ -17,9 +17,13 @@ export function renderTabs() {
     return;
   }
 
-  showEditorScreen();
-  
   const activeTab = getActiveTab();
+  if (activeTab === '__SCAN_RESULTS__') {
+    showScanResultsScreen();
+  } else {
+    showEditorScreen();
+  }
+  
   openTabs.forEach(tab => {
     const tabItem = createTabElement(tab, activeTab);
     tabsBar.appendChild(tabItem);
@@ -66,6 +70,7 @@ function showWelcomeScreen() {
   const dom = getDOM();
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'flex';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
+  if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
 }
@@ -73,7 +78,17 @@ function showWelcomeScreen() {
 function showEditorScreen() {
   const dom = getDOM();
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
+  if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'flex';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'flex';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'flex';
+}
+
+export function showScanResultsScreen() {
+  const dom = getDOM();
+  if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
+  if (dom.editorPanel) dom.editorPanel.style.display = 'none';
+  if (dom.resultsPanel) dom.resultsPanel.style.display = 'block';
+  if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
+  if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
 }

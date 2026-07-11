@@ -72,35 +72,62 @@ export function switchTab(filePath) {
   if (activeTab === filePath) return;
 
   // Cache current text in active tab before switching
-  if (activeTab) {
+  if (activeTab && activeTab !== '__SCAN_RESULTS__') {
     const prevTab = findTab(activeTab);
-    if (prevTab) {
+    if (prevTab && getDOM().codeTextarea) {
       prevTab.content = getDOM().codeTextarea.value;
     }
   }
 
   setActiveTab(filePath);
-  const nextTab = findTab(filePath);
+  
+  if (filePath === '__SCAN_RESULTS__') {
+    // UI rendering is handled by renderTabs()
+  } else {
+    const nextTab = findTab(filePath);
+    if (nextTab) {
+      const { codeTextarea, lineNumbersContainer } = getDOM();
+      if (codeTextarea) {
+        codeTextarea.value = nextTab.content;
+        updateLineNumbers();
+        updateLineCol();
 
-  if (nextTab) {
-    const { codeTextarea, lineNumbersContainer } = getDOM();
-    codeTextarea.value = nextTab.content;
-    updateLineNumbers();
-    updateLineCol();
+        // Reset scrolls
+        codeTextarea.scrollTop = 0;
+        if (lineNumbersContainer) lineNumbersContainer.scrollTop = 0;
 
-    // Reset scrolls
-    codeTextarea.scrollTop = 0;
-    lineNumbersContainer.scrollTop = 0;
+        // Update breadcrumbs
+        updateBreadcrumbs(filePath);
 
-    // Update breadcrumbs
-    updateBreadcrumbs(filePath);
-
-    // Sidebar highlight sync
-    highlightActiveFileInTree(filePath);
+        // Sidebar highlight sync
+        highlightActiveFileInTree(filePath);
+      }
+    }
   }
 
   renderTabs();
-  getDOM().codeTextarea.focus();
+  const textarea = getDOM().codeTextarea;
+  if (textarea && filePath !== '__SCAN_RESULTS__') textarea.focus();
+}
+
+export function openScanResultsTab() {
+  const path = '__SCAN_RESULTS__';
+  const existingTab = findTab(path);
+  if (existingTab) {
+    switchTab(path);
+    return;
+  }
+
+  const newTab = {
+    path: path,
+    name: 'Scan Results',
+    content: '',
+    originalContent: '',
+    isDirty: false
+  };
+
+  addTab(newTab);
+  switchTab(path);
 }
 
 export async function closeTab(filePath, event, forceClose = false) {
