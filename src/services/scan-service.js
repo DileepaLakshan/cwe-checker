@@ -5,11 +5,23 @@ import { ScanResultsPanel } from '../components/scan-results/scan-results-panel.
 import { WelcomeScreen } from '../components/welcome-screen/welcome-screen.js';
 import { StatusBar } from '../components/status-bar/status-bar.js';
 import { collectCweIds, getUniqueCweIds } from '../utils/cwe-utils.js';
+import { getCurrentWorkspace } from '../state/ide-state.js';
+import { openWorkspace } from './workspace-service.js';
 
 export async function performScan() {
   try {
-    const projectFolder = await window.scannerAPI.selectProject();
-    if (!projectFolder) return;
+    let projectFolder = null;
+    const workspace = getCurrentWorkspace();
+    
+    if (workspace && workspace.path) {
+      projectFolder = workspace.path;
+    } else {
+      projectFolder = await window.scannerAPI.selectProject();
+      if (!projectFolder) return;
+      
+      const dirName = projectFolder.split(/[\\/]/).pop();
+      await openWorkspace(projectFolder, dirName);
+    }
 
     StatusBar.updateMode('Scanning...');
     WelcomeScreen.hide();

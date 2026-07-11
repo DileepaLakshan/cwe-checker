@@ -5,7 +5,6 @@ import './index.css';
 import { initEventListeners } from './events/global-events';
 import { initIDEState, getIDEState } from './state/ide-state';
 import { renderRecentProjects } from './components/recent-projects';
-import { initScanButton } from './events/scan-events';
 import { initDOMReferences } from './utils/dom-references';
 import { initComponents } from './components/index.js';
 import { initApp } from './app.js';
@@ -25,9 +24,6 @@ window.addEventListener('DOMContentLoaded', () => {
   
   // Setup all event listeners
   initEventListeners();
-  
-  // Initialize scan functionality
-  initScanButton();
   
   // Load recent workspaces
   renderRecentProjects();
