@@ -18,21 +18,28 @@ export class ScanResultsPanel {
           <button id="btn-close-results" class="btn-secondary">Close Results</button>
         </div>
         
-        <div class="results-summary" id="results-summary"></div>
-
-        <div class="results-section">
-          <h3>Source Code CWEs (OpenGrep)</h3>
-          <div id="sast-results-container" class="results-list"></div>
+        <div id="scan-loading-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px;">
+          <span class="scan-spinner"></span>
+          <p style="margin-top: 24px; color: hsl(var(--text-muted)); font-size: 15px; font-weight: 500;">Scanning project for vulnerabilities...</p>
         </div>
 
-        <div class="results-section">
-          <h3>Dependency CWEs (Trivy)</h3>
-          <div id="sca-results-container" class="results-list"></div>
-        </div>
+        <div id="scan-content-container" style="display: none;">
+          <div class="results-summary" id="results-summary"></div>
 
-        <div class="results-section">
-          <h3>Located CWE Source Matches</h3>
-          <div id="cwe-location-results-container" class="results-list"></div>
+          <div class="results-section">
+            <h3>Source Code CWEs (OpenGrep)</h3>
+            <div id="sast-results-container" class="results-list"></div>
+          </div>
+
+          <div class="results-section">
+            <h3>Dependency CWEs (Trivy)</h3>
+            <div id="sca-results-container" class="results-list"></div>
+          </div>
+
+          <div class="results-section">
+            <h3>Located CWE Source Matches</h3>
+            <div id="cwe-location-results-container" class="results-list"></div>
+          </div>
         </div>
       </div>
     `;
@@ -52,6 +59,20 @@ export class ScanResultsPanel {
   static hide() {
     const panel = document.getElementById('scan-results-panel');
     if (panel) panel.style.display = 'none';
+  }
+
+  static showLoading() {
+    const loadingContainer = document.getElementById('scan-loading-container');
+    const contentContainer = document.getElementById('scan-content-container');
+    if (loadingContainer) loadingContainer.style.display = 'flex';
+    if (contentContainer) contentContainer.style.display = 'none';
+  }
+
+  static hideLoading() {
+    const loadingContainer = document.getElementById('scan-loading-container');
+    const contentContainer = document.getElementById('scan-content-container');
+    if (loadingContainer) loadingContainer.style.display = 'none';
+    if (contentContainer) contentContainer.style.display = 'block';
   }
 
   static updateSummary(sastCount, scaCount) {

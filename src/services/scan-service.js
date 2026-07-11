@@ -26,6 +26,7 @@ export async function performScan() {
     StatusBar.updateMode('Scanning...');
     WelcomeScreen.hide();
     ScanResultsPanel.show();
+    ScanResultsPanel.showLoading();
 
     const [sastResults, scaResults] = await Promise.all([
       window.scannerAPI.runSAST(projectFolder),
@@ -56,6 +57,7 @@ export async function performScan() {
     });
 
     // Render results
+    ScanResultsPanel.hideLoading();
     ScanResultsPanel.renderSASTResults(sastCweIssuesArray);
     ScanResultsPanel.renderSCAResults(cweIssuesArray, trivyVulnerabilities.length);
     ScanResultsPanel.updateSummary(sastCweIssuesArray.length, cweIssuesArray.length);
@@ -66,6 +68,7 @@ export async function performScan() {
     StatusBar.updateMode('Scan complete');
   } catch (error) {
     console.error("Scanning failed:", error);
+    ScanResultsPanel.hideLoading();
     StatusBar.updateMode('Scan failed', true);
   }
 }
