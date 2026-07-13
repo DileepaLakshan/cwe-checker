@@ -461,6 +461,19 @@ body {
   min-height: 0;
 }
 
+#dynamic-view {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+#scan-results-component {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Welcome Landing screen */
 .welcome-screen {
   position: absolute;
