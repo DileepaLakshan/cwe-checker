@@ -47,9 +47,21 @@ export function scrollToLine(lineNumber, highlight = false) {
   // Handle line number background styling
   document.querySelectorAll('.line-num.error-highlight').forEach(el => el.classList.remove('error-highlight'));
   
+  // Clear any existing textarea background highlight
+  codeTextarea.style.background = '';
+  codeTextarea.style.backgroundAttachment = '';
+  
+  const lineHeight = 20;
+  const paddingTop = 16;
+  const topOffset = paddingTop + (target - 1) * lineHeight;
+
   if (highlight) {
     const el = document.querySelector(`.line-num[data-line="${target}"]`);
     if (el) el.classList.add('error-highlight');
+    
+    // Highlight directly on the textarea using a linear-gradient background that scrolls with content
+    codeTextarea.style.background = `linear-gradient(to bottom, transparent ${topOffset}px, rgba(248, 81, 73, 0.15) ${topOffset}px, rgba(248, 81, 73, 0.15) ${topOffset + lineHeight}px, transparent ${topOffset + lineHeight}px)`;
+    codeTextarea.style.backgroundAttachment = 'local';
     
     // Select the entire line for visual emphasis in the textarea
     codeTextarea.selectionStart = position;
@@ -59,5 +71,10 @@ export function scrollToLine(lineNumber, highlight = false) {
   }
   
   codeTextarea.focus();
+  
+  // Ensure the line is scrolled into view (centered)
+  const clientHeight = codeTextarea.clientHeight;
+  codeTextarea.scrollTop = Math.max(0, topOffset - clientHeight / 2);
+  
   updateLineCol();
 }
