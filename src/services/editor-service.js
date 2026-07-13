@@ -10,12 +10,12 @@ import { showStatusBarMessage } from '../utils/status-bar';
 import { renderTabs } from '../components/tabs';
 import { updateLineNumbers, updateLineCol, scrollToLine } from '../utils/editor-utils';
 
-export async function openFile(filePath, lineNumber = null) {
+export async function openFile(filePath, lineNumber = null, highlight = false) {
   const existingTab = findTab(filePath);
   if (existingTab) {
     switchTab(filePath);
     if (lineNumber) {
-      scrollToLine(lineNumber);
+      scrollToLine(lineNumber, highlight);
     }
     return;
   }
@@ -55,7 +55,7 @@ export async function openFile(filePath, lineNumber = null) {
     renderTabs();
     
     if (lineNumber) {
-      scrollToLine(lineNumber);
+      scrollToLine(lineNumber, highlight);
     }
     codeTextarea.focus();
   } catch (err) {
@@ -63,8 +63,8 @@ export async function openFile(filePath, lineNumber = null) {
   }
 }
 
-export function openFileInEditor(filePath, lineNumber = null) {
-  return openFile(filePath, lineNumber);
+export function openFileInEditor(filePath, lineNumber = null, highlight = false) {
+  return openFile(filePath, lineNumber, highlight);
 }
 
 export function switchTab(filePath) {

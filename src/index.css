@@ -681,6 +681,16 @@ body {
   white-space: pre;
 }
 
+.line-num {
+  display: block;
+}
+
+.line-num.error-highlight {
+  color: #ff7b72;
+  background-color: rgba(248, 81, 73, 0.15);
+  font-weight: bold;
+}
+
 .code-textarea {
   flex: 1;
   background-color: transparent;

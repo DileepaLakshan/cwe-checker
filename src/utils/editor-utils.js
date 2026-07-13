@@ -10,11 +10,11 @@ export function updateLineNumbers() {
   const lines = codeTextarea.value.split('\n');
   const count = lines.length;
 
-  let content = '';
+  let html = '';
   for (let i = 1; i <= count; i++) {
-    content += i + '\n';
+    html += `<span class="line-num" data-line="${i}">${i}</span>\n`;
   }
-  lineNumbers.innerText = content;
+  lineNumbers.innerHTML = html;
 }
 
 export function updateLineCol() {
@@ -33,7 +33,7 @@ export function updateLineCol() {
   }
 }
 
-export function scrollToLine(lineNumber) {
+export function scrollToLine(lineNumber, highlight = false) {
   const { codeTextarea } = getDOM();
   if (!codeTextarea) return;
   
@@ -43,7 +43,21 @@ export function scrollToLine(lineNumber) {
   for (let i = 1; i < target; i++) {
     position += lines[i - 1].length + 1;
   }
-  codeTextarea.selectionStart = codeTextarea.selectionEnd = position;
+
+  // Handle line number background styling
+  document.querySelectorAll('.line-num.error-highlight').forEach(el => el.classList.remove('error-highlight'));
+  
+  if (highlight) {
+    const el = document.querySelector(`.line-num[data-line="${target}"]`);
+    if (el) el.classList.add('error-highlight');
+    
+    // Select the entire line for visual emphasis in the textarea
+    codeTextarea.selectionStart = position;
+    codeTextarea.selectionEnd = position + lines[target - 1].length;
+  } else {
+    codeTextarea.selectionStart = codeTextarea.selectionEnd = position;
+  }
+  
   codeTextarea.focus();
   updateLineCol();
 }

@@ -35,7 +35,7 @@ export function renderCweLocationResults(resultsByCwe) {
 
 function renderCWELocationHit(hit) {
   return `
-    <div class="cwe-location-hit" role="button" tabindex="0" data-file="${hit.file || ''}" data-line="${hit.line || ''}">
+    <div class="cwe-location-hit clickable" role="button" tabindex="0" data-file="${hit.file || ''}" data-line="${hit.line || ''}">
       <p class="file-path"><b>${hit.file || 'Unknown file'}</b>${hit.line ? `:${hit.line}` : ''}</p>
       <p class="vuln-desc">${hit.message || hit.ruleId || 'No details available'}</p>
     </div>

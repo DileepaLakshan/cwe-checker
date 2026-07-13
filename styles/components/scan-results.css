@@ -39,6 +39,36 @@
   border-radius: 6px;
   padding: 15px;
   font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.result-card.clickable {
+  cursor: pointer;
+}
+
+.result-card.clickable:hover {
+  background-color: #2d2d30;
+  border-color: #58a6ff;
+  transform: translateY(-1px);
+}
+
+.cwe-location-hit {
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  margin-top: 10px;
+  transition: all 0.2s ease;
+}
+
+.cwe-location-hit.clickable {
+  cursor: pointer;
+}
+
+.cwe-location-hit.clickable:hover {
+  background-color: #252526;
+  border-color: #58a6ff;
+  transform: translateY(-1px);
 }
 
 .card-header {

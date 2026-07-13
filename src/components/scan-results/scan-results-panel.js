@@ -1,7 +1,8 @@
 /**
  * Scan Results Panel Component
  */
-import { closeTab } from '../../services/editor-service.js';
+import { closeTab, openFileInEditor } from '../../services/editor-service.js';
+import { getCurrentWorkspace } from '../../state/ide-state.js';
 
 export class ScanResultsPanel {
   static init(containerId) {
@@ -97,7 +98,7 @@ export class ScanResultsPanel {
     }
 
     container.innerHTML = cweIssues.map(hit => `
-      <div class="result-card sast-card">
+      <div class="result-card sast-card clickable" data-file="${hit.path}" data-line="${hit.start?.line || ''}">
         <div class="card-header">
           <span class="severity warning">Warning</span>
           <span class="vuln-id">${hit.CweID}</span>
@@ -107,6 +108,8 @@ export class ScanResultsPanel {
         <p class="vuln-desc"><b>Rule:</b> ${hit.check_id}</p>
       </div>
     `).join('');
+    
+    this.attachResultClickListeners(container, '.sast-card');
   }
 
   static renderSCAResults(cweIssues, totalVulnerabilities = 0) {
@@ -138,6 +141,31 @@ export class ScanResultsPanel {
 
   static renderCWELocations(html) {
     const container = document.getElementById('cwe-location-results-container');
-    if (container) container.innerHTML = html;
+    if (container) {
+      container.innerHTML = html;
+      this.attachResultClickListeners(container, '.cwe-location-hit');
+    }
+  }
+
+  static attachResultClickListeners(container, selector) {
+    const workspace = getCurrentWorkspace();
+    if (!workspace) return;
+    
+    container.querySelectorAll(selector).forEach(item => {
+      item.addEventListener('click', () => {
+        const file = item.getAttribute('data-file');
+        const line = Number(item.getAttribute('data-line')) || null;
+        if (file) {
+          let absolutePath = file;
+          const normalizedFile = file.replace(/\\/g, '/');
+          const normalizedWorkspace = workspace.path.replace(/\\/g, '/');
+          
+          if (!normalizedFile.startsWith(normalizedWorkspace)) {
+            absolutePath = `${workspace.path}/${file}`.replace(/\\/g, '/');
+          }
+          openFileInEditor(absolutePath, line, true);
+        }
+      });
+    });
   }
 }
