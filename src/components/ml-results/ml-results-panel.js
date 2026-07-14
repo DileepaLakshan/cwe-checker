@@ -43,23 +43,14 @@ export class MlResultsPanel {
       const score = typeof modelData.score === 'number' ? modelData.score.toFixed(2) : modelData.score;
       const inputs = modelData.inputs || [];
       
-      // Filter out 0-weight and 0-value inputs to match diagram style (keep up to 4 for visual fit)
+      // Keep only inputs with a weight strictly greater than 0
       let topInputs = inputs
-          .filter(i => i.weight > 0 || i.value > 0)
+          .filter(i => i.weight > 0)
           .slice(0, 4);
 
-      if (topInputs.length === 0) {
-        topInputs = inputs.slice(0, 3);
-      }
-
-      html += `
-        <div class="ml-model-tree">
-          <!-- Top Node (Output) -->
-          <div class="ml-output-node">
-            <div class="ml-score">${score}</div>
-            <div class="ml-model-name">${modelName}</div>
-          </div>
-          
+      let edgesHtml = '';
+      if (topInputs.length > 0) {
+        edgesHtml = `
           <div class="ml-edges">
             <!-- Connecting lines handled by CSS pseudo-elements -->
             <div class="ml-weights-box">
@@ -77,6 +68,17 @@ export class MlResultsPanel {
               `).join('')}
             </div>
           </div>
+        `;
+      }
+
+      html += `
+        <div class="ml-model-tree">
+          <!-- Top Node (Output) -->
+          <div class="ml-output-node">
+            <div class="ml-score">${score}</div>
+            <div class="ml-model-name">${modelName}</div>
+          </div>
+          ${edgesHtml}
         </div>
       `;
     }
