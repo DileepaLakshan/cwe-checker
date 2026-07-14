@@ -43,9 +43,13 @@ def main():
                         "CWE-193_area_area"
                     ]
                 
+                importances = getattr(model, 'feature_importances_', [])
+                
                 # Build the row specifically for this model's required features
                 row = {}
-                for f in expected_features:
+                # Convert expected_features to list to easily find index later
+                expected_list = list(expected_features)
+                for f in expected_list:
                     cwe = f.split('_')[0]
                     row[f] = float(input_data.get(cwe, 0.0))
                     
@@ -54,21 +58,26 @@ def main():
                 prediction = model.predict(model_df)[0]
                 model_name = model_file.replace("_random_forest_model.pkl", "")
                 
+                # Build inputs_data based ONLY on what was actually scanned (input_data)
                 inputs_data = []
-                importances = getattr(model, 'feature_importances_', [])
-                for idx, f in enumerate(expected_features):
-                    cwe = f.split('_')[0]
-                    val = float(input_data.get(cwe, 0.0))
-                    weight = float(importances[idx]) if idx < len(importances) else 0.0
-                    
+                for scanned_cwe, scanned_val in input_data.items():
+                    # Find if this scanned_cwe is a feature in the model
+                    # The models use the format CWE-XXX_area_area
+                    feature_name = f"{scanned_cwe}_area_area"
+                    weight = 0.0
+                    if feature_name in expected_list:
+                        idx = expected_list.index(feature_name)
+                        if idx < len(importances):
+                            weight = float(importances[idx])
+                            
                     inputs_data.append({
-                        "cwe": cwe,
-                        "value": val,
+                        "cwe": scanned_cwe,
+                        "value": float(scanned_val),
                         "weight": weight
                     })
                 
-                # Sort inputs by weight descending
-                inputs_data.sort(key=lambda x: x['weight'], reverse=True)
+                # Sort inputs by value descending (since they were scanned)
+                inputs_data.sort(key=lambda x: x['value'], reverse=True)
                 
                 results[model_name] = {
                     "score": float(prediction),
