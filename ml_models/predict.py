@@ -15,29 +15,6 @@ def main():
         print(json.dumps({"error": f"Invalid JSON: {str(e)}"}))
         return
 
-    # Ensure these specific features are present
-    features = [
-        "CWE-129_area_area",
-        "CWE-130_area_area",
-        "CWE-131_area_area",
-        "CWE-1321_area_area",
-        "CWE-1333_area_area",
-        "CWE-134_area_area",
-        "CWE-159_area_area",
-        "CWE-190_area_area",
-        "CWE-191_area_area",
-        "CWE-193_area_area"
-    ]
-
-    # Build the feature row
-    row = {}
-    for f in features:
-        # The input_data comes keyed by CWE-XXX
-        cwe = f.split('_')[0]
-        row[f] = float(input_data.get(cwe, 0.0))
-
-    df = pd.DataFrame([row])
-
     models_dir = os.path.dirname(os.path.abspath(__file__))
     model_files = [
         "Access Control_random_forest_model.pkl",
@@ -53,7 +30,28 @@ def main():
         if os.path.exists(model_path):
             try:
                 model = joblib.load(model_path)
-                prediction = model.predict(df)[0]
+                
+                # Dynamically extract expected feature names for this specific model
+                if hasattr(model, 'feature_names_in_'):
+                    expected_features = model.feature_names_in_
+                else:
+                    # Fallback if no feature names recorded
+                    expected_features = [
+                        "CWE-129_area_area", "CWE-130_area_area", "CWE-131_area_area",
+                        "CWE-1321_area_area", "CWE-1333_area_area", "CWE-134_area_area",
+                        "CWE-159_area_area", "CWE-190_area_area", "CWE-191_area_area",
+                        "CWE-193_area_area"
+                    ]
+                
+                # Build the row specifically for this model's required features
+                row = {}
+                for f in expected_features:
+                    cwe = f.split('_')[0]
+                    row[f] = float(input_data.get(cwe, 0.0))
+                    
+                model_df = pd.DataFrame([row])
+                
+                prediction = model.predict(model_df)[0]
                 model_name = model_file.replace("_random_forest_model.pkl", "")
                 results[model_name] = float(prediction)
             except Exception as e:
