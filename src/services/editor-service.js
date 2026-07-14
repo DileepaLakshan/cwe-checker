@@ -81,7 +81,7 @@ export function switchTab(filePath) {
 
   setActiveTab(filePath);
   
-  if (filePath === '__SCAN_RESULTS__') {
+  if (filePath === '__SCAN_RESULTS__' || filePath === '__ML_RESULTS__') {
     // UI rendering is handled by renderTabs()
   } else {
     const nextTab = findTab(filePath);
@@ -107,7 +107,7 @@ export function switchTab(filePath) {
 
   renderTabs();
   const textarea = getDOM().codeTextarea;
-  if (textarea && filePath !== '__SCAN_RESULTS__') textarea.focus();
+  if (textarea && filePath !== '__SCAN_RESULTS__' && filePath !== '__ML_RESULTS__') textarea.focus();
 }
 
 export function openScanResultsTab() {

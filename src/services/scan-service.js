@@ -2,10 +2,12 @@
  * Scan Service - Handles scan operations
  */
 import { ScanResultsPanel } from '../components/scan-results/scan-results-panel.js';
+import { MlResultsPanel } from '../components/ml-results/ml-results-panel.js';
 import { WelcomeScreen } from '../components/welcome-screen/welcome-screen.js';
 import { StatusBar } from '../components/status-bar/status-bar.js';
 import { collectCweIds, getUniqueCweIds } from '../utils/cwe-utils.js';
-import { getCurrentWorkspace } from '../state/ide-state.js';
+import { getCurrentWorkspace, addTab, setActiveTab } from '../state/ide-state.js';
+import { renderTabs } from '../components/tabs.js';
 import { openWorkspace } from './workspace-service.js';
 import { openScanResultsTab } from './editor-service.js';
 
@@ -150,15 +152,21 @@ function calculateCweValues(sastIssues, scaIssues) {
     console.log("Running ML model predictions...");
     window.scannerAPI.runMLPredict(mlFeatures)
       .then(result => {
-        console.log("=== ML Model Output ===");
-        if (result && result.predictions) {
-          for (const [modelName, value] of Object.entries(result.predictions)) {
-            console.log(`Model [${modelName}]: ${value}`);
-          }
-        } else {
-          console.log("Unexpected ML output:", result);
-        }
-        console.log("=======================");
+        console.log("=== ML Model Output ===", result);
+        
+        // Add ML Results tab to ide-state
+        const mlTab = {
+          path: '__ML_RESULTS__',
+          name: 'ML Visualizer',
+          isDirty: false
+        };
+        addTab(mlTab);
+        setActiveTab('__ML_RESULTS__');
+        
+        // Render UI
+        renderTabs();
+        
+        MlResultsPanel.render(result);
       })
       .catch(err => {
         console.error("ML Prediction failed:", err);

@@ -1,0 +1,263 @@
+/* ML Results Panel Styles */
+#ml-results-component {
+  width: 100%;
+  height: 100%;
+  background-color: hsl(var(--bg-app));
+  color: hsl(var(--text-main));
+  overflow-y: auto;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.ml-results-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  min-height: 100%;
+  background-color: #ffffff; /* Use a clean white background for the diagram */
+  color: #333;
+}
+
+/* Header */
+.ml-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 50px;
+}
+
+.ml-header .ml-icon {
+  width: 32px;
+  height: 32px;
+  color: #495057;
+}
+
+.ml-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #f05454; /* Reddish color from the image */
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+/* Tree Layout */
+.ml-tree-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 30px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.ml-model-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  min-width: 180px;
+}
+
+/* Output Nodes (Top) */
+.ml-output-node {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid #0056b3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: white;
+  z-index: 2;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ml-output-node.error {
+  border-color: #dc3545;
+}
+
+.ml-score {
+  color: #007bff;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.ml-output-node.error .ml-score {
+  color: #dc3545;
+  font-size: 14px;
+}
+
+.ml-model-name {
+  color: #6c757d;
+  font-size: 11px;
+  text-transform: capitalize;
+  margin-top: 4px;
+  text-align: center;
+  max-width: 80%;
+  line-height: 1.2;
+}
+
+/* Edges & Weights */
+.ml-edges {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 25px;
+  position: relative;
+}
+
+/* Vertical line down to weights */
+.ml-edges::before {
+  content: '';
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  width: 2px;
+  height: 25px;
+  background: #cbd5e1;
+  z-index: 1;
+  transform: translateX(-50%);
+}
+
+/* Weights Box */
+.ml-weights-box {
+  display: flex;
+  gap: 8px;
+  padding: 4px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: white;
+  z-index: 2;
+  font-family: monospace;
+  color: #f97316;
+  font-size: 12px;
+  margin-bottom: 25px;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.ml-weights-box .ml-weight {
+  display: inline-block;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Vertical line down from weights box */
+.ml-weights-box::after {
+  content: '';
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  width: 2px;
+  height: 25px;
+  background: #cbd5e1;
+  z-index: 1;
+  transform: translateX(-50%);
+}
+
+/* Inputs Row & Bracket */
+.ml-inputs-row {
+  display: flex;
+  gap: 15px;
+  position: relative;
+}
+
+/* Horizontal bracket line */
+.ml-inputs-row::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 25px; /* 50px width / 2 */
+  right: 25px;
+  height: 2px;
+  background: #cbd5e1;
+  z-index: 1;
+}
+
+/* Input Node Wrapper */
+.ml-input-node-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 25px; /* space for vertical drop line */
+}
+
+/* Vertical bracket drop lines */
+.ml-input-node-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 25px;
+  background: #cbd5e1;
+  z-index: 1;
+  transform: translateX(-50%);
+}
+
+/* For single child, hide horizontal bracket and fix drop line */
+.ml-inputs-row:has(.ml-input-node-wrapper:only-child)::after {
+  display: none;
+}
+
+.ml-input-node {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid #8b5cf6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: white;
+  z-index: 2;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.ml-input-value {
+  color: #0ea5e9;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ml-input-label {
+  margin-top: 8px;
+  font-size: 10px;
+  color: #64748b;
+  font-family: monospace;
+}
+
+/* Footer / Scanner element */
+.ml-scanner-footer {
+  margin-top: 80px;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  justify-content: center;
+}
+
+.ml-scanner-box {
+  background-color: #f87171;
+  color: white;
+  padding: 12px 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+}
+
+.ml-no-data {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-size: 16px;
+  color: hsl(var(--text-muted));
+}

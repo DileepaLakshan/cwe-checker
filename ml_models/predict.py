@@ -53,11 +53,31 @@ def main():
                 
                 prediction = model.predict(model_df)[0]
                 model_name = model_file.replace("_random_forest_model.pkl", "")
-                results[model_name] = float(prediction)
+                
+                inputs_data = []
+                importances = getattr(model, 'feature_importances_', [])
+                for idx, f in enumerate(expected_features):
+                    cwe = f.split('_')[0]
+                    val = float(input_data.get(cwe, 0.0))
+                    weight = float(importances[idx]) if idx < len(importances) else 0.0
+                    
+                    inputs_data.append({
+                        "cwe": cwe,
+                        "value": val,
+                        "weight": weight
+                    })
+                
+                # Sort inputs by weight descending
+                inputs_data.sort(key=lambda x: x['weight'], reverse=True)
+                
+                results[model_name] = {
+                    "score": float(prediction),
+                    "inputs": inputs_data
+                }
             except Exception as e:
-                results[model_file] = f"Error: {str(e)}"
+                results[model_file] = {"error": str(e)}
         else:
-            results[model_file] = "Not found"
+            results[model_file] = {"error": "Not found"}
 
     print(json.dumps({"predictions": results}))
 

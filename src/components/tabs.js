@@ -20,6 +20,8 @@ export function renderTabs() {
   const activeTab = getActiveTab();
   if (activeTab === '__SCAN_RESULTS__') {
     showScanResultsScreen();
+  } else if (activeTab === '__ML_RESULTS__') {
+    showMlResultsScreen();
   } else {
     showEditorScreen();
   }
@@ -71,6 +73,7 @@ function showWelcomeScreen() {
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'flex';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
+  if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
 }
@@ -79,6 +82,7 @@ function showEditorScreen() {
   const dom = getDOM();
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
+  if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'flex';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'flex';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'flex';
@@ -88,7 +92,18 @@ export function showScanResultsScreen() {
   const dom = getDOM();
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
+  if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'block';
+  if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
+  if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
+}
+
+export function showMlResultsScreen() {
+  const dom = getDOM();
+  if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
+  if (dom.editorPanel) dom.editorPanel.style.display = 'none';
+  if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
+  if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'block';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
 }

@@ -1,4 +1,5 @@
 /* Import component stylesheets */
+@import './components/ml-results.css';
 @import './components/activity-bar.css';
 @import './components/sidebar.css';
 @import './components/welcome-screen.css';
