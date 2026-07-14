@@ -125,6 +125,8 @@ function calculateCweValues(sastIssues, scaIssues) {
   console.log("CWE-NUMBER | CRITICAL | HIGH | MEDIUM | LOW | VALUE");
   console.log("-".repeat(75));
 
+  const mlFeatures = {};
+
   for (const cwe of Object.keys(cweStats).sort()) {
     const counts = cweStats[cwe];
     const critCount = counts.CRITICAL;
@@ -138,10 +140,30 @@ function calculateCweValues(sastIssues, scaIssues) {
     const y4 = calculateValue(critCount, 10.0, 7.5);
 
     const totalValue = Math.max(y1, y2, y3, y4);
+    mlFeatures[cwe] = totalValue;
     
     console.log(`${cwe.padEnd(10)} | ${critCount.toString().padStart(8)} | ${highCount.toString().padStart(4)} | ${medCount.toString().padStart(6)} | ${lowCount.toString().padStart(3)} | ${totalValue.toFixed(4)}`);
   }
   console.log("-".repeat(75) + "\\n");
+
+  if (window.scannerAPI && window.scannerAPI.runMLPredict) {
+    console.log("Running ML model predictions...");
+    window.scannerAPI.runMLPredict(mlFeatures)
+      .then(result => {
+        console.log("=== ML Model Output ===");
+        if (result && result.predictions) {
+          for (const [modelName, value] of Object.entries(result.predictions)) {
+            console.log(`Model [${modelName}]: ${value}`);
+          }
+        } else {
+          console.log("Unexpected ML output:", result);
+        }
+        console.log("=======================");
+      })
+      .catch(err => {
+        console.error("ML Prediction failed:", err);
+      });
+  }
 }
 
 async function handleCWELocation(projectFolder, cweIssuesArray) {

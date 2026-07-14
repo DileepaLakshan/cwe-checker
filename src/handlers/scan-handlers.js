@@ -46,4 +46,79 @@ export function registerScanHandlers() {
   ipcMain.handle('scan:cwe-locate', async (event, projectPath, cweIds) => {
     return runCweLocate(projectPath, cweIds);
   });
+
+  // Handler to run ML predictions
+  ipcMain.handle('scan:ml-predict', async (event, featuresData) => {
+    return new Promise((resolve, reject) => {
+      const pythonScriptPath = path.join(app.getAppPath(), 'ml_models', 'predict.py');
+      const args = JSON.stringify(featuresData).replace(/"/g, '\\"');
+      
+      const commonPaths = [
+        'py', 'python', 'python3',
+        path.join(app.getAppPath(), 'python-path.txt'), // Check if user provided a custom path file
+        path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'python.exe'),
+        path.join(process.env.USERPROFILE || '', 'anaconda3', 'python.exe'),
+        path.join(process.env.USERPROFILE || '', 'miniconda3', 'python.exe'),
+        'C:\\\\ProgramData\\\\anaconda3\\\\python.exe',
+        'C:\\\\Python312\\\\python.exe',
+        'C:\\\\Python311\\\\python.exe',
+        'C:\\\\Python310\\\\python.exe',
+        'C:\\\\Python39\\\\python.exe',
+        'C:\\\\Python38\\\\python.exe',
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'python.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python311', 'python.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python310', 'python.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python39', 'python.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python38', 'python.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Launcher', 'py.exe')
+      ];
+      
+      let customPath = null;
+      try {
+        const customPathFile = path.join(app.getAppPath(), 'python-path.txt');
+        if (require('node:fs').existsSync(customPathFile)) {
+          customPath = require('node:fs').readFileSync(customPathFile, 'utf8').trim();
+        }
+      } catch (e) {}
+
+      const commandsToTry = [];
+      if (customPath) commandsToTry.push(customPath);
+      
+      commandsToTry.push(...commonPaths.filter(p => p === 'py' || p === 'python' || p === 'python3' || (typeof p === 'string' && require('node:fs').existsSync(p) && !p.endsWith('python-path.txt'))));
+      
+      const tryExecute = (index) => {
+        if (index >= commandsToTry.length) {
+          reject("Python could not be found. To fix this, create a file named 'python-path.txt' in your cwe-checker folder containing the exact absolute path to your python.exe file.");
+          return;
+        }
+
+        const cmd = commandsToTry[index];
+        const command = `"${cmd}" "${pythonScriptPath}" "${args}"`;
+        
+        exec(command, (error, stdout, stderr) => {
+          const isWindowsStoreAliasError = stderr && stderr.includes("Python was not found");
+          
+          if (error || isWindowsStoreAliasError) {
+            if (error && error.code === 'ENOENT' || isWindowsStoreAliasError || (stderr && stderr.includes('not recognized'))) {
+              tryExecute(index + 1);
+            } else {
+              console.error("ML Predict Error:", error);
+              console.error("ML Predict Stderr:", stderr);
+              reject("Failed to run ML model: " + (error ? error.message : stderr));
+            }
+            return;
+          }
+          
+          try {
+            const result = JSON.parse(stdout.trim());
+            resolve(result);
+          } catch (e) {
+            reject("Failed to parse ML output: " + e.message + "\\nOutput: " + stdout);
+          }
+        });
+      };
+
+      tryExecute(0);
+    });
+  });
 }
