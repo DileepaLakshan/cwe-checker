@@ -10,6 +10,12 @@ export function registerScanHandlers() {
   ipcMain.handle('scan:sast', async (event, targetFolder) => {
     const opengrepPath = getBinaryPath('opengrep_windows_x86.exe'); 
     const outputPath = path.join(app.getPath('userData'), 'sast-results.json');
+    
+    // Delete old results file to prevent reading stale data if scan fails
+    if (existsSync(outputPath)) {
+      try { require('node:fs').unlinkSync(outputPath); } catch (e) {}
+    }
+    
     const command = `"${opengrepPath}" scan --config auto --json --output "${outputPath}" "${targetFolder}"`;
 
     return new Promise((resolve, reject) => {
@@ -18,7 +24,7 @@ export function registerScanHandlers() {
           const rawData = readFileSync(outputPath, 'utf8');
           resolve(JSON.parse(rawData));
         } else {
-          reject("Failed to generate SAST results: " + (error || stderr));
+          reject("Failed to generate SAST results: " + (error ? error.message : stderr));
         }
       });
     });
@@ -28,6 +34,12 @@ export function registerScanHandlers() {
   ipcMain.handle('scan:sca', async (event, targetFolder) => {
     const trivyPath = getBinaryPath('trivy.exe');
     const outputPath = path.join(app.getPath('userData'), 'sca-results.json');
+    
+    // Delete old results file to prevent reading stale data if scan fails
+    if (existsSync(outputPath)) {
+      try { require('node:fs').unlinkSync(outputPath); } catch (e) {}
+    }
+    
     const command = `"${trivyPath}" fs --format json --output "${outputPath}" "${targetFolder}"`;
 
     return new Promise((resolve, reject) => {
@@ -36,7 +48,7 @@ export function registerScanHandlers() {
           const rawData = readFileSync(outputPath, 'utf8'); 
           resolve(JSON.parse(rawData));
         } else {
-          reject("Failed to generate SCA results: " + (error || stderr));
+          reject("Failed to generate SCA results: " + (error ? error.message : stderr));
         }
       });
     });

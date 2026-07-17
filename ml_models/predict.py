@@ -21,7 +21,9 @@ def main():
         "Integrity_random_forest_model.pkl",
         "Maintainability_random_forest_model.pkl",
         "availability_random_forest_model.pkl",
-        "confidentiality_random_forest_model.pkl"
+        "confidentiality_random_forest_model.pkl",
+        "security_random_forest_model.pkl",
+        "non-repudiation_random_forest_model.pkl"
     ]
 
     results = {}

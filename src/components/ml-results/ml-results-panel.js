@@ -40,12 +40,18 @@ export class MlResultsPanel {
         continue;
       }
 
-      const score = typeof modelData.score === 'number' ? modelData.score.toFixed(2) : modelData.score;
+      const score = typeof modelData.score === 'number' ? modelData.score.toFixed(4) : modelData.score;
       const inputs = modelData.inputs || [];
       
-      // Keep only inputs with a weight strictly greater than 0
+      const validInputs = inputs.filter(i => i.value !== 0);
+      if (validInputs.length > 0) {
+        const equationString = validInputs.map(i => `${i.cwe}(${i.value.toFixed(4)} * ${i.weight.toFixed(4)})`).join(' + ');
+        console.log(`${modelName} ml output = ${equationString}`);
+      }
+      
+      // Keep only inputs with a weight strictly greater than 0 and a non-zero value
       let topInputs = inputs
-          .filter(i => i.weight > 0)
+          .filter(i => i.weight > 0 && i.value !== 0)
           .slice(0, 4);
 
       let edgesHtml = '';
@@ -54,14 +60,14 @@ export class MlResultsPanel {
           <div class="ml-edges">
             <!-- Connecting lines handled by CSS pseudo-elements -->
             <div class="ml-weights-box">
-              ${topInputs.map(i => `<span class="ml-weight">${i.weight.toFixed(2)}</span>`).join('')}
+              ${topInputs.map(i => `<span class="ml-weight">${i.weight.toFixed(4)}</span>`).join('')}
             </div>
             
             <div class="ml-inputs-row">
               ${topInputs.map(i => `
                 <div class="ml-input-node-wrapper">
                   <div class="ml-input-node">
-                    <div class="ml-input-value">${i.value.toFixed(2)}</div>
+                    <div class="ml-input-value">${i.value.toFixed(4)}</div>
                   </div>
                   <div class="ml-input-label">${i.cwe}</div>
                 </div>

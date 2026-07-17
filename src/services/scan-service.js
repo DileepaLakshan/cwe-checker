@@ -31,8 +31,16 @@ export async function performScan() {
     ScanResultsPanel.showLoading();
 
     const [sastResults, scaResults] = await Promise.all([
-      window.scannerAPI.runSAST(projectFolder),
-      window.scannerAPI.runSCA(projectFolder)
+      window.scannerAPI.runSAST(projectFolder).catch(e => {
+        console.error("SAST Scanner Failed:", e);
+        StatusBar.updateMode("SAST Failed", true);
+        return { results: [] };
+      }),
+      window.scannerAPI.runSCA(projectFolder).catch(e => {
+        console.error("SCA Scanner Failed:", e);
+        StatusBar.updateMode("SCA Failed", true);
+        return { Results: [] };
+      })
     ]);
 
     // Process SAST results
