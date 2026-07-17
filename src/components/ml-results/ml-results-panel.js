@@ -15,6 +15,20 @@ export class MlResultsPanel {
     // Sort models by name
     const models = Object.keys(predictions).sort();
     
+    // Calculate TQI
+    let sumScore = 0;
+    let validModelCount = 0;
+    
+    for (const modelName of models) {
+      const modelData = predictions[modelName];
+      if (!modelData.error && typeof modelData.score === 'number') {
+        sumScore += modelData.score;
+        validModelCount++;
+      }
+    }
+    
+    const tqiScore = validModelCount > 0 ? (sumScore / validModelCount).toFixed(4) : "0.0000";
+
     let html = `
       <div class="ml-results-container">
         <div class="ml-header">
@@ -23,20 +37,32 @@ export class MlResultsPanel {
           </svg>
           <h2>ML INTEGRATION</h2>
         </div>
-        <div class="ml-tree-container">
+        
+        <div class="ml-tqi-tree">
+          <!-- TQI Root Node -->
+          <div class="ml-output-node tqi-node">
+            <div class="ml-score">${tqiScore}</div>
+            <div class="ml-model-name">TQI</div>
+          </div>
+          
+          <div class="ml-tqi-edges">
+            <div class="ml-models-row">
     `;
 
     for (const modelName of models) {
       const modelData = predictions[modelName];
+      // Format modelName id to be safe for HTML ID attributes
+      const safeModelId = modelName.replace(/[^a-zA-Z0-9_-]/g, '-');
+      
+      html += `<div class="ml-model-wrapper">`;
+      
       if (modelData.error) {
         html += `
-          <div class="ml-model-tree">
-            <div class="ml-output-node error">
-              <div class="ml-score">Error</div>
-              <div class="ml-model-name">${modelName}</div>
-            </div>
+          <div class="ml-output-node error">
+            <div class="ml-score">Error</div>
+            <div class="ml-model-name">${modelName}</div>
           </div>
-        `;
+        </div>`;
         continue;
       }
 
@@ -56,7 +82,7 @@ export class MlResultsPanel {
       let edgesHtml = '';
       if (topInputs.length > 0) {
         edgesHtml = `
-          <div class="ml-edges">
+          <div class="ml-edges hidden" id="edges-${safeModelId}">
             <!-- Connecting lines handled by CSS pseudo-elements -->
             <div class="ml-weights-box">
               ${topInputs.map(i => `<span class="ml-weight">${i.weight.toFixed(4)}</span>`).join('')}
@@ -77,9 +103,8 @@ export class MlResultsPanel {
       }
 
       html += `
-        <div class="ml-model-tree">
-          <!-- Top Node (Output) -->
-          <div class="ml-output-node">
+          <!-- ML Model Node -->
+          <div class="ml-output-node ml-node-clickable" data-model-id="edges-${safeModelId}">
             <div class="ml-score">${score}</div>
             <div class="ml-model-name">${modelName}</div>
           </div>
@@ -89,6 +114,8 @@ export class MlResultsPanel {
     }
 
     html += `
+            </div>
+          </div>
         </div>
         
         <div class="ml-scanner-footer">
@@ -101,5 +128,18 @@ export class MlResultsPanel {
     `;
 
     mlResultsPanel.innerHTML = html;
+    
+    // Add interactivity
+    const clickableNodes = mlResultsPanel.querySelectorAll('.ml-node-clickable');
+    clickableNodes.forEach(node => {
+      node.addEventListener('click', (e) => {
+        const targetId = node.getAttribute('data-model-id');
+        const edgesContainer = mlResultsPanel.querySelector('#' + targetId);
+        if (edgesContainer) {
+          edgesContainer.classList.toggle('hidden');
+        }
+      });
+    });
+
   }
 }
