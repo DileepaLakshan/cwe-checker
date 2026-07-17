@@ -2,6 +2,31 @@ import { getDOM } from '../../utils/dom-references.js';
 
 export class MlResultsPanel {
   static mlWeights = {};
+  static cweWeights = {};
+
+  static getModelScore(modelName, predictions) {
+    const modelData = predictions[modelName];
+    if (modelData.error) return 0;
+    
+    if (!MlResultsPanel.cweWeights[modelName]) {
+      MlResultsPanel.cweWeights[modelName] = {};
+      const inputs = modelData.inputs || [];
+      for (const i of inputs) {
+        if (i.value !== 0) {
+          MlResultsPanel.cweWeights[modelName][i.cwe] = i.weight;
+        }
+      }
+    }
+    
+    let sum = 0;
+    const inputs = modelData.inputs || [];
+    for (const i of inputs) {
+      if (i.value !== 0 && MlResultsPanel.cweWeights[modelName][i.cwe] !== undefined) {
+        sum += i.value * MlResultsPanel.cweWeights[modelName][i.cwe];
+      }
+    }
+    return sum;
+  }
 
   static render(mlData) {
     const { mlResultsPanel } = getDOM();
@@ -27,7 +52,8 @@ export class MlResultsPanel {
         if (MlResultsPanel.mlWeights[modelName] === undefined) {
           MlResultsPanel.mlWeights[modelName] = 1.0;
         }
-        sumScore += modelData.score * MlResultsPanel.mlWeights[modelName];
+        const dynamicScore = MlResultsPanel.getModelScore(modelName, predictions);
+        sumScore += dynamicScore * MlResultsPanel.mlWeights[modelName];
         validModelCount++;
       }
     }
@@ -90,7 +116,7 @@ export class MlResultsPanel {
         continue;
       }
 
-      const score = typeof modelData.score === 'number' ? modelData.score.toFixed(4) : modelData.score;
+      const score = typeof modelData.score === 'number' ? MlResultsPanel.getModelScore(modelName, predictions).toFixed(4) : modelData.score;
       const inputs = modelData.inputs || [];
       
       const validInputs = inputs.filter(i => i.value !== 0);
@@ -101,7 +127,7 @@ export class MlResultsPanel {
       
       // Keep only inputs with a weight strictly greater than 0 and a non-zero value
       let topInputs = inputs
-          .filter(i => i.weight > 0 && i.value !== 0);
+          .filter(i => i.value !== 0 && MlResultsPanel.cweWeights[modelName][i.cwe] !== undefined);
 
       let edgesHtml = '';
       if (topInputs.length > 0) {
@@ -109,7 +135,16 @@ export class MlResultsPanel {
           <div class="ml-edges hidden" id="edges-${safeModelId}">
             <!-- Connecting lines handled by CSS pseudo-elements -->
             <div class="ml-weights-box">
-              ${topInputs.map(i => `<span class="ml-weight">${i.weight.toFixed(4)}</span>`).join('')}
+              ${topInputs.map(i => `
+                <div class="ml-cwe-weight-input-wrapper">
+                  <input type="number" 
+                         class="ml-cwe-weight-input" 
+                         data-model="${modelName}" 
+                         data-cwe="${i.cwe}" 
+                         step="0.0001" 
+                         value="${MlResultsPanel.cweWeights[modelName][i.cwe].toFixed(4)}">
+                </div>
+              `).join('')}
             </div>
             
             <div class="ml-inputs-row">
@@ -192,11 +227,48 @@ export class MlResultsPanel {
         let validCount = 0;
         for (const m of models) {
           if (!predictions[m].error && typeof predictions[m].score === 'number') {
-            newSum += predictions[m].score * MlResultsPanel.mlWeights[m];
+            const mScore = MlResultsPanel.getModelScore(m, predictions);
+            newSum += mScore * MlResultsPanel.mlWeights[m];
             validCount++;
           }
         }
         const newTqi = validCount > 0 ? (newSum / validCount).toFixed(4) : "0.0000";
+        const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
+        if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
+      });
+    });
+
+    // CWE Weight inputs
+    const cweWeightInputs = mlResultsPanel.querySelectorAll('.ml-cwe-weight-input');
+    cweWeightInputs.forEach(input => {
+      input.addEventListener('input', (e) => {
+        const modelName = e.target.getAttribute('data-model');
+        const cweName = e.target.getAttribute('data-cwe');
+        const newVal = parseFloat(e.target.value) || 0;
+        
+        MlResultsPanel.cweWeights[modelName][cweName] = newVal;
+        
+        // Recalculate Model Score
+        const newModelScore = MlResultsPanel.getModelScore(modelName, predictions);
+        
+        // Update Model Score Node
+        const safeModelId = modelName.replace(/[^a-zA-Z0-9_-]/g, '-');
+        const modelNode = mlResultsPanel.querySelector(`[data-model-id="edges-${safeModelId}"] .ml-score`);
+        if (modelNode) {
+          modelNode.textContent = newModelScore.toFixed(4);
+        }
+        
+        // Recalculate TQI
+        let newTqiSum = 0;
+        let validCount = 0;
+        for (const m of models) {
+          if (!predictions[m].error && typeof predictions[m].score === 'number') {
+            const mScore = MlResultsPanel.getModelScore(m, predictions);
+            newTqiSum += mScore * MlResultsPanel.mlWeights[m];
+            validCount++;
+          }
+        }
+        const newTqi = validCount > 0 ? (newTqiSum / validCount).toFixed(4) : "0.0000";
         const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
         if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
       });
