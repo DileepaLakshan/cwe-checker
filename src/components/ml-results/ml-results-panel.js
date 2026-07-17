@@ -51,8 +51,7 @@ export class MlResultsPanel {
       
       // Keep only inputs with a weight strictly greater than 0 and a non-zero value
       let topInputs = inputs
-          .filter(i => i.weight > 0 && i.value !== 0)
-          .slice(0, 4);
+          .filter(i => i.weight > 0 && i.value !== 0);
 
       let edgesHtml = '';
       if (topInputs.length > 0) {
