@@ -1,6 +1,8 @@
 import { getDOM } from '../../utils/dom-references.js';
 
 export class MlResultsPanel {
+  static mlWeights = {};
+
   static render(mlData) {
     const { mlResultsPanel } = getDOM();
     if (!mlResultsPanel) return;
@@ -22,7 +24,10 @@ export class MlResultsPanel {
     for (const modelName of models) {
       const modelData = predictions[modelName];
       if (!modelData.error && typeof modelData.score === 'number') {
-        sumScore += modelData.score;
+        if (MlResultsPanel.mlWeights[modelName] === undefined) {
+          MlResultsPanel.mlWeights[modelName] = 1.0;
+        }
+        sumScore += modelData.score * MlResultsPanel.mlWeights[modelName];
         validModelCount++;
       }
     }
@@ -36,6 +41,25 @@ export class MlResultsPanel {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <h2>ML INTEGRATION</h2>
+          <button id="adjust-weights-btn" class="adjust-weights-btn">Adjust Weights</button>
+        </div>
+        
+        <!-- Weights Control Panel (hidden by default) -->
+        <div id="weights-panel" class="weights-panel hidden">
+          <h3>Adjust ML Model Weights</h3>
+          <div class="weights-grid">
+            ${models.map(m => {
+              if (predictions[m].error || typeof predictions[m].score !== 'number') return '';
+              const safeM = m.replace(/[^a-zA-Z0-9_-]/g, '-');
+              return `
+                <div class="weight-control-row">
+                  <label for="weight-${safeM}">${m}</label>
+                  <input type="range" id="weight-${safeM}" data-model="${m}" min="0" max="2" step="0.1" value="${MlResultsPanel.mlWeights[m]}">
+                  <span id="weight-val-${safeM}">${MlResultsPanel.mlWeights[m].toFixed(1)}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
         
         <div class="ml-tqi-tree">
@@ -138,6 +162,43 @@ export class MlResultsPanel {
         if (edgesContainer) {
           edgesContainer.classList.toggle('hidden');
         }
+      });
+    });
+
+    // Weights panel toggle
+    const adjustBtn = mlResultsPanel.querySelector('#adjust-weights-btn');
+    const weightsPanel = mlResultsPanel.querySelector('#weights-panel');
+    if (adjustBtn && weightsPanel) {
+      adjustBtn.addEventListener('click', () => {
+        weightsPanel.classList.toggle('hidden');
+      });
+    }
+
+    // Weight sliders
+    const weightInputs = mlResultsPanel.querySelectorAll('.weight-control-row input[type="range"]');
+    weightInputs.forEach(input => {
+      input.addEventListener('input', (e) => {
+        const modelName = e.target.getAttribute('data-model');
+        const newVal = parseFloat(e.target.value);
+        MlResultsPanel.mlWeights[modelName] = newVal;
+        
+        // Update label
+        const safeId = modelName.replace(/[^a-zA-Z0-9_-]/g, '-');
+        const valSpan = mlResultsPanel.querySelector('#weight-val-' + safeId);
+        if (valSpan) valSpan.textContent = newVal.toFixed(1);
+        
+        // Recalculate TQI
+        let newSum = 0;
+        let validCount = 0;
+        for (const m of models) {
+          if (!predictions[m].error && typeof predictions[m].score === 'number') {
+            newSum += predictions[m].score * MlResultsPanel.mlWeights[m];
+            validCount++;
+          }
+        }
+        const newTqi = validCount > 0 ? (newSum / validCount).toFixed(4) : "0.0000";
+        const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
+        if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
       });
     });
 
