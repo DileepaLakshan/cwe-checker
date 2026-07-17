@@ -12,7 +12,7 @@ export class MlResultsPanel {
       MlResultsPanel.cweWeights[modelName] = {};
       const inputs = modelData.inputs || [];
       for (const i of inputs) {
-        if (i.value !== 0) {
+        if (i.value !== 0 && i.weight !== 0) {
           MlResultsPanel.cweWeights[modelName][i.cwe] = i.weight;
         }
       }
