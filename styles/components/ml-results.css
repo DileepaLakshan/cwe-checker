@@ -44,10 +44,9 @@
 /* Tree Layout */
 .ml-tree-container {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 30px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
+  gap: 60px;
   width: 100%;
 }
 
@@ -57,6 +56,9 @@
   align-items: center;
   position: relative;
   min-width: 180px;
+  max-width: 90vw;
+  overflow-x: auto;
+  padding: 10px;
 }
 
 /* Output Nodes (Top) */
