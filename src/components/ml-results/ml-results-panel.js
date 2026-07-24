@@ -46,6 +46,7 @@ export class MlResultsPanel {
     // Calculate TQI
     let sumScore = 0;
     let validModelCount = 0;
+    let mathString = "TQI = [ ";
     
     for (const modelName of models) {
       const modelData = predictions[modelName];
@@ -54,10 +55,18 @@ export class MlResultsPanel {
           MlResultsPanel.mlWeights[modelName] = 1.0;
         }
         const dynamicScore = MlResultsPanel.getModelScore(modelName, predictions);
-        // As per request: tqi = ((10-ml1)+(10-ml2))/n. We incorporate the model weight here.
-        sumScore += (10 - dynamicScore) * MlResultsPanel.mlWeights[modelName];
+        const weight = MlResultsPanel.mlWeights[modelName];
+        sumScore += (10 - dynamicScore) * weight;
+        mathString += `(10 - ${dynamicScore.toFixed(4)}) * ${weight.toFixed(1)} + `;
         validModelCount++;
       }
+    }
+    
+    if (validModelCount > 0) {
+      mathString = mathString.slice(0, -3); // remove last " + "
+      mathString += ` ] / ${validModelCount}`;
+    } else {
+      mathString = "No models available for calculation.";
     }
     
     const tqiScore = validModelCount > 0 ? (sumScore / validModelCount).toFixed(4) : "0.0000";
@@ -190,6 +199,11 @@ export class MlResultsPanel {
     html += `
             </div>
           </div>
+
+          <div id="tqi-math-breakdown" style="margin-top: 30px; font-family: monospace; font-size: 13px; color: #475569; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1; max-width: 800px; text-align: center; line-height: 1.5;">
+            <!-- Math string injected here -->
+          </div>
+
         </div>
         
         <div class="ml-scanner-footer">
@@ -202,6 +216,12 @@ export class MlResultsPanel {
     `;
 
     mlResultsPanel.innerHTML = html;
+    
+    // Inject initial math calculation
+    const mathBreakdownNode = mlResultsPanel.querySelector('#tqi-math-breakdown');
+    if (mathBreakdownNode) {
+      mathBreakdownNode.innerHTML = `<b>Calculation:</b> ${mathString} = <b style="color: #28a745;">${tqiScore}</b>`;
+    }
     
     // Add interactivity
     const clickableNodes = mlResultsPanel.querySelectorAll('.ml-node-clickable');
@@ -316,13 +336,40 @@ export class MlResultsPanel {
             reasoningEl.innerHTML = logHtml;
             reasoningEl.classList.remove('hidden');
             
-            // Re-render completely or trigger TQI recalc logic
-            // Easiest is to simulate an input event on one of the sliders to trigger recalculations
-            const firstSlider = mlResultsPanel.querySelector('.weight-control-row input[type="range"]');
-            if (firstSlider) {
-              const ev = new Event('input');
-              firstSlider.dispatchEvent(ev);
+            // Recalculate and update all individual model scores and the global TQI
+            let newTqiSum = 0;
+            let validCount = 0;
+            let newMathString = "TQI = [ ";
+            
+            for (const m of models) {
+              if (!predictions[m].error && typeof predictions[m].score === 'number') {
+                const newModelScore = MlResultsPanel.getModelScore(m, predictions);
+                const w = MlResultsPanel.mlWeights[m];
+                
+                // Update Model Score Node
+                const safeModelId = m.replace(/[^a-zA-Z0-9_-]/g, '-');
+                const modelNode = mlResultsPanel.querySelector(`[data-model-id="edges-${safeModelId}"] .ml-score`);
+                if (modelNode) {
+                  modelNode.textContent = newModelScore.toFixed(4);
+                }
+
+                newTqiSum += (10 - newModelScore) * w;
+                newMathString += `(10 - ${newModelScore.toFixed(4)}) * ${w.toFixed(1)} + `;
+                validCount++;
+              }
             }
+            
+            if (validCount > 0) {
+              newMathString = newMathString.slice(0, -3);
+              newMathString += ` ] / ${validCount}`;
+            }
+            
+            const newTqi = validCount > 0 ? (newTqiSum / validCount).toFixed(4) : "0.0000";
+            const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
+            if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
+            
+            const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
+            if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Calculation:</b> ${newMathString} = <b style="color: #28a745;">${newTqi}</b>`;
 
             statusEl.textContent = "AI Analysis Complete!";
             statusEl.style.color = "#16a34a"; // green
@@ -354,16 +401,28 @@ export class MlResultsPanel {
         // Recalculate TQI
         let newSum = 0;
         let validCount = 0;
+        let newMathString = "TQI = [ ";
         for (const m of models) {
           if (!predictions[m].error && typeof predictions[m].score === 'number') {
             const mScore = MlResultsPanel.getModelScore(m, predictions);
-            newSum += (10 - mScore) * MlResultsPanel.mlWeights[m];
+            const w = MlResultsPanel.mlWeights[m];
+            newSum += (10 - mScore) * w;
+            newMathString += `(10 - ${mScore.toFixed(4)}) * ${w.toFixed(1)} + `;
             validCount++;
           }
         }
+        
+        if (validCount > 0) {
+          newMathString = newMathString.slice(0, -3);
+          newMathString += ` ] / ${validCount}`;
+        }
+        
         const newTqi = validCount > 0 ? (newSum / validCount).toFixed(4) : "0.0000";
         const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
         if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
+        
+        const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
+        if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Calculation:</b> ${newMathString} = <b style="color: #28a745;">${newTqi}</b>`;
       });
     });
 
@@ -390,16 +449,28 @@ export class MlResultsPanel {
         // Recalculate TQI
         let newTqiSum = 0;
         let validCount = 0;
+        let newMathString = "TQI = [ ";
         for (const m of models) {
           if (!predictions[m].error && typeof predictions[m].score === 'number') {
             const mScore = MlResultsPanel.getModelScore(m, predictions);
-            newTqiSum += (10 - mScore) * MlResultsPanel.mlWeights[m];
+            const w = MlResultsPanel.mlWeights[m];
+            newTqiSum += (10 - mScore) * w;
+            newMathString += `(10 - ${mScore.toFixed(4)}) * ${w.toFixed(1)} + `;
             validCount++;
           }
         }
+        
+        if (validCount > 0) {
+          newMathString = newMathString.slice(0, -3);
+          newMathString += ` ] / ${validCount}`;
+        }
+        
         const newTqi = validCount > 0 ? (newTqiSum / validCount).toFixed(4) : "0.0000";
         const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
         if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
+        
+        const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
+        if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Calculation:</b> ${newMathString} = <b style="color: #28a745;">${newTqi}</b>`;
       });
     });
 
