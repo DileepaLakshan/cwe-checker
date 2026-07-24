@@ -84,7 +84,9 @@ export class MlResultsPanel {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <h2>ML INTEGRATION</h2>
-          <button id="ai-panel-btn" class="adjust-weights-btn" style="margin-left: auto; margin-right: 10px; background-color: #8b5cf6;">AI Weights</button>
+          <button id="history-compare-btn" class="adjust-weights-btn" style="margin-left: auto; margin-right: 10px; background-color: #3b82f6;">History & Compare</button>
+          <button id="save-snapshot-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #10b981;">Save Snapshot</button>
+          <button id="ai-panel-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #8b5cf6;">AI Weights</button>
           <button id="adjust-weights-btn" class="adjust-weights-btn" style="margin-left: 0;">Manual Weights</button>
         </div>
         
@@ -219,6 +221,66 @@ export class MlResultsPanel {
           </div>
         </div>
       </div>
+      
+      <!-- Save Snapshot Modal -->
+      <div id="vc-save-modal" class="vc-modal-overlay hidden">
+        <div class="vc-modal-content">
+          <div class="vc-modal-header">
+            <h3 class="vc-modal-title">Save Analysis Snapshot</h3>
+            <button id="vc-save-close" class="vc-btn-close">&times;</button>
+          </div>
+          <div class="vc-form-group">
+            <label>Project Name</label>
+            <input type="text" id="vc-project-name" list="vc-project-list" placeholder="e.g., WebGoat">
+            <datalist id="vc-project-list"></datalist>
+          </div>
+          <div class="vc-form-group">
+            <label>Version / Snapshot Name</label>
+            <input type="text" id="vc-version-name" placeholder="e.g., v1.0 Pre-Patch">
+          </div>
+          <div class="vc-modal-actions">
+            <button id="vc-save-cancel" class="vc-btn-secondary">Cancel</button>
+            <button id="vc-save-confirm" class="vc-btn-primary">Save Snapshot</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History & Compare Modal -->
+      <div id="vc-history-modal" class="vc-modal-overlay hidden">
+        <div class="vc-modal-content" style="max-width: 1000px; padding: 0;">
+          <div class="vc-modal-header" style="padding: 24px 24px 12px 24px; margin-bottom: 0;">
+            <h3 class="vc-modal-title">Version Control & History</h3>
+            <button id="vc-history-close" class="vc-btn-close" style="margin-top: -10px;">&times;</button>
+          </div>
+          
+          <div class="vc-history-layout">
+            <div class="vc-sidebar">
+               <h4 style="margin: 15px 0 10px 15px; color: #64748b; font-size: 13px; text-transform: uppercase;">Projects</h4>
+               <div id="vc-project-sidebar-list" style="padding: 0 10px;"></div>
+            </div>
+            
+            <div class="vc-main-content">
+               <div id="vc-main-empty" style="padding: 40px; text-align: center; color: #64748b;">
+                  <p>Select a project from the sidebar to view its history and TQI trends.</p>
+               </div>
+               
+               <div id="vc-main-view" class="hidden" style="padding-right: 20px; padding-top: 15px;">
+                  <h3 id="vc-view-title" style="margin-top: 0;"></h3>
+                  
+                  <!-- SVG Graph Container -->
+                  <div class="vc-svg-container">
+                    <svg id="vc-tqi-graph" width="100%" height="100%"></svg>
+                    <div id="vc-svg-tooltip" class="vc-svg-tooltip"></div>
+                  </div>
+                  
+                  <h4 style="margin-top: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Version History</h4>
+                  <div id="vc-version-diffs"></div>
+               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
     `;
 
     mlResultsPanel.innerHTML = html;
@@ -490,5 +552,283 @@ export class MlResultsPanel {
       });
     });
 
+    // --- VERSION CONTROL LOGIC ---
+    const btnSaveModal = mlResultsPanel.querySelector('#save-snapshot-btn');
+    const modalSave = mlResultsPanel.querySelector('#vc-save-modal');
+    const btnCloseSave = mlResultsPanel.querySelector('#vc-save-close');
+    const btnCancelSave = mlResultsPanel.querySelector('#vc-save-cancel');
+    const btnConfirmSave = mlResultsPanel.querySelector('#vc-save-confirm');
+    const inputProjectName = mlResultsPanel.querySelector('#vc-project-name');
+    const inputVersionName = mlResultsPanel.querySelector('#vc-version-name');
+
+    const datalist = mlResultsPanel.querySelector('#vc-project-list');
+    if (btnSaveModal) {
+      btnSaveModal.addEventListener('click', () => {
+        let history = JSON.parse(localStorage.getItem('cwe-history') || '{"projects":{}}');
+        datalist.innerHTML = Object.keys(history.projects).map(p => `<option value="${p}">`).join('');
+        modalSave.classList.remove('hidden');
+      });
+    }
+    const hideSaveModal = () => { modalSave.classList.add('hidden'); inputProjectName.value = ''; inputVersionName.value = ''; };
+    if (btnCloseSave) btnCloseSave.addEventListener('click', hideSaveModal);
+    if (btnCancelSave) btnCancelSave.addEventListener('click', hideSaveModal);
+
+    if (btnConfirmSave) {
+      btnConfirmSave.addEventListener('click', () => {
+        const pName = inputProjectName.value.trim();
+        const vName = inputVersionName.value.trim();
+        if (!pName || !vName) { alert("Please enter both Project and Version names."); return; }
+
+        let history = JSON.parse(localStorage.getItem('cwe-history') || '{"projects":{}}');
+        if (!history.projects[pName]) history.projects[pName] = { snapshots: [] };
+        
+        const currentTqiNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
+        const cTqi = currentTqiNode ? currentTqiNode.textContent : "0.0000";
+        
+        const allCwes = new Set();
+        Object.values(MlResultsPanel.cweWeights).forEach(cweMap => {
+          Object.keys(cweMap).forEach(cwe => allCwes.add(cwe));
+        });
+
+        const modelScores = {};
+        for (const m of models) {
+          if (!predictions[m].error && typeof predictions[m].score === 'number') {
+            modelScores[m] = MlResultsPanel.getModelScore(m, predictions);
+          }
+        }
+
+        const snapshot = {
+          id: Date.now().toString(),
+          versionName: vName,
+          timestamp: Date.now(),
+          tqiScore: cTqi,
+          cwes: Array.from(allCwes),
+          mlWeights: JSON.parse(JSON.stringify(MlResultsPanel.mlWeights)),
+          cweWeights: JSON.parse(JSON.stringify(MlResultsPanel.cweWeights)),
+          modelScores: modelScores,
+          globalTqiPenalty: MlResultsPanel.globalTqiPenalty
+        };
+
+        history.projects[pName].snapshots.push(snapshot);
+        localStorage.setItem('cwe-history', JSON.stringify(history));
+        
+        alert(`Snapshot '${vName}' saved successfully for project '${pName}'!`);
+        hideSaveModal();
+      });
+    }
+
+    // History & Compare logic
+    const btnHistory = mlResultsPanel.querySelector('#history-compare-btn');
+    const modalHistory = mlResultsPanel.querySelector('#vc-history-modal');
+    const btnCloseHistory = mlResultsPanel.querySelector('#vc-history-close');
+    const sidebarList = mlResultsPanel.querySelector('#vc-project-sidebar-list');
+    const mainEmpty = mlResultsPanel.querySelector('#vc-main-empty');
+    const mainView = mlResultsPanel.querySelector('#vc-main-view');
+    const viewTitle = mlResultsPanel.querySelector('#vc-view-title');
+    const svgGraph = mlResultsPanel.querySelector('#vc-tqi-graph');
+    const svgTooltip = mlResultsPanel.querySelector('#vc-svg-tooltip');
+    const versionDiffs = mlResultsPanel.querySelector('#vc-version-diffs');
+
+    // Global function to restore weights from a button click
+    window.restoreVcWeights = function(snapId, pName) {
+      const history = JSON.parse(localStorage.getItem('cwe-history') || '{"projects":{}}');
+      const snap = history.projects[pName].snapshots.find(s => s.id === snapId);
+      if (!snap) return;
+
+      if (snap.mlWeights) MlResultsPanel.mlWeights = snap.mlWeights;
+      if (snap.cweWeights) MlResultsPanel.cweWeights = snap.cweWeights;
+      if (snap.globalTqiPenalty !== undefined) MlResultsPanel.globalTqiPenalty = snap.globalTqiPenalty;
+
+      // Update UI sliders and text
+      Object.keys(MlResultsPanel.mlWeights).forEach(mName => {
+        const safeId = mName.replace(/[^a-zA-Z0-9_-]/g, '-');
+        const slider = mlResultsPanel.querySelector('#weight-' + safeId);
+        const valSpan = mlResultsPanel.querySelector('#weight-val-' + safeId);
+        if (slider) slider.value = MlResultsPanel.mlWeights[mName];
+        if (valSpan) valSpan.textContent = MlResultsPanel.mlWeights[mName].toFixed(1);
+      });
+      Object.keys(MlResultsPanel.cweWeights).forEach(mName => {
+         Object.keys(MlResultsPanel.cweWeights[mName]).forEach(cwe => {
+             const input = mlResultsPanel.querySelector(`.ml-cwe-weight-input[data-model="${mName}"][data-cwe="${cwe}"]`);
+             if (input) input.value = MlResultsPanel.cweWeights[mName][cwe].toFixed(4);
+         });
+      });
+
+      // Trigger a recalculation by faking an input event on the first slider
+      const firstSlider = mlResultsPanel.querySelector('.weight-control-row input[type="range"]');
+      if (firstSlider) firstSlider.dispatchEvent(new Event('input'));
+
+      alert("AI Weights and Penalties successfully restored!");
+      modalHistory.classList.add('hidden');
+    };
+
+    const drawGraph = (snapshots) => {
+      const w = svgGraph.clientWidth || 700;
+      const h = 250;
+      const padding = 30;
+      const usableW = w - (padding * 2);
+      const usableH = h - (padding * 2);
+      
+      svgGraph.innerHTML = ''; // clear
+
+      // Draw Y axis lines and labels (0 to 10)
+      for(let i=0; i<=10; i+=2) {
+        const y = padding + usableH - ((i / 10) * usableH);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", padding - 5); line.setAttribute("y1", y);
+        line.setAttribute("x2", w); line.setAttribute("y2", y);
+        line.setAttribute("stroke", "#e2e8f0"); line.setAttribute("stroke-dasharray", "4");
+        
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", 5); text.setAttribute("y", y + 4);
+        text.setAttribute("font-size", "10px"); text.setAttribute("fill", "#64748b");
+        text.textContent = i;
+        
+        svgGraph.appendChild(line);
+        svgGraph.appendChild(text);
+      }
+
+      if (snapshots.length === 0) return;
+
+      const points = [];
+      snapshots.forEach((snap, idx) => {
+        const x = snapshots.length === 1 ? (w/2) : padding + (idx / (snapshots.length - 1)) * usableW;
+        const tqi = parseFloat(snap.tqiScore) || 0;
+        const y = padding + usableH - ((tqi / 10) * usableH);
+        points.push({x, y, snap, tqi});
+      });
+
+      // Draw Line
+      if (points.length > 1) {
+        const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        const pointsStr = points.map(p => `${p.x},${p.y}`).join(' ');
+        polyline.setAttribute("points", pointsStr);
+        polyline.setAttribute("fill", "none");
+        polyline.setAttribute("stroke", "#3b82f6");
+        polyline.setAttribute("stroke-width", "3");
+        svgGraph.appendChild(polyline);
+      }
+
+      // Draw Points
+      points.forEach((p, idx) => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", p.x); circle.setAttribute("cy", p.y);
+        circle.setAttribute("r", "6");
+        circle.setAttribute("fill", "#fff");
+        circle.setAttribute("stroke", "#3b82f6");
+        circle.setAttribute("stroke-width", "2");
+        circle.style.cursor = "pointer";
+        
+        circle.addEventListener("mouseenter", (e) => {
+           svgTooltip.style.opacity = 1;
+           svgTooltip.style.left = e.pageX + 'px';
+           svgTooltip.style.top = e.pageY + 'px';
+           svgTooltip.innerHTML = `<b>${p.snap.versionName}</b><br/>TQI: ${p.tqi.toFixed(4)}<br/>${new Date(p.snap.timestamp).toLocaleDateString()}`;
+        });
+        circle.addEventListener("mouseleave", () => { svgTooltip.style.opacity = 0; });
+        
+        svgGraph.appendChild(circle);
+      });
+    };
+
+    const renderProjectHistory = (pName, snapshots) => {
+      mainEmpty.classList.add('hidden');
+      mainView.classList.remove('hidden');
+      viewTitle.textContent = `${pName} - History`;
+
+      // Sort chronological
+      snapshots.sort((a, b) => a.timestamp - b.timestamp);
+
+      // Draw graph
+      setTimeout(() => drawGraph(snapshots), 10); // Wait for DOM to paint so clientWidth works
+
+      // Build Version Diffs
+      versionDiffs.innerHTML = '';
+      if (snapshots.length === 0) return;
+      
+      // Base version
+      const baseSnap = snapshots[0];
+      versionDiffs.innerHTML += `
+        <div class="vc-version-diff" style="border-left: 4px solid #94a3b8;">
+          <div class="vc-diff-header">
+            <div>
+               <strong>${baseSnap.versionName}</strong> (Baseline)
+               <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(baseSnap.timestamp).toLocaleString()} | Initial TQI: ${baseSnap.tqiScore}</div>
+            </div>
+            <button class="vc-restore-btn" onclick="restoreVcWeights('${baseSnap.id}', '${pName}')">Restore Weights</button>
+          </div>
+        </div>
+      `;
+
+      for (let i = 1; i < snapshots.length; i++) {
+        const snapA = snapshots[i-1];
+        const snapB = snapshots[i];
+        
+        const setA = new Set(snapA.cwes);
+        const setB = new Set(snapB.cwes);
+        const fixedCwes = [...setA].filter(x => !setB.has(x));
+        const newCwes = [...setB].filter(x => !setA.has(x));
+        
+        const tqiDelta = parseFloat(snapB.tqiScore) - parseFloat(snapA.tqiScore);
+        const tqiColor = tqiDelta > 0 ? '#16a34a' : (tqiDelta < 0 ? '#dc2626' : '#64748b');
+        const tqiSign = tqiDelta > 0 ? '+' : '';
+
+        let diffHtml = `
+          <div class="vc-version-diff" style="border-left: 4px solid #3b82f6;">
+            <div class="vc-diff-header">
+              <div>
+                 <strong>${snapB.versionName}</strong>
+                 <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(snapB.timestamp).toLocaleString()}</div>
+                 <div style="margin-top: 6px; font-weight: 500;">
+                   TQI: ${snapB.tqiScore} <span style="color: ${tqiColor}">(${tqiSign}${tqiDelta.toFixed(4)})</span>
+                 </div>
+              </div>
+              <button class="vc-restore-btn" onclick="restoreVcWeights('${snapB.id}', '${pName}')">Restore Weights</button>
+            </div>
+            
+            <div style="display:flex; gap: 15px; margin-top: 10px;">
+              <div style="flex:1; background: #ecfdf5; padding: 10px; border-radius: 6px; font-size:13px;">
+                <strong style="color: #065f46;">Fixed (${fixedCwes.length})</strong>
+                <div style="color: #047857; margin-top:4px;">${fixedCwes.length ? fixedCwes.join(', ') : '-'}</div>
+              </div>
+              <div style="flex:1; background: #fef2f2; padding: 10px; border-radius: 6px; font-size:13px;">
+                <strong style="color: #991b1b;">New (${newCwes.length})</strong>
+                <div style="color: #b91c1c; margin-top:4px;">${newCwes.length ? newCwes.join(', ') : '-'}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        versionDiffs.innerHTML += diffHtml;
+      }
+    };
+
+    if (btnHistory) {
+      btnHistory.addEventListener('click', () => {
+        const history = JSON.parse(localStorage.getItem('cwe-history') || '{"projects":{}}');
+        sidebarList.innerHTML = '';
+        mainEmpty.classList.remove('hidden');
+        mainView.classList.add('hidden');
+        
+        if (Object.keys(history.projects).length === 0) {
+          sidebarList.innerHTML = '<p style="color:#64748b; font-size:13px;">No projects saved.</p>';
+        } else {
+          for (const [pName, pData] of Object.entries(history.projects)) {
+            const item = document.createElement('div');
+            item.className = 'vc-project-item';
+            item.textContent = `${pName} (${pData.snapshots.length})`;
+            item.addEventListener('click', () => {
+              sidebarList.querySelectorAll('.vc-project-item').forEach(el => el.classList.remove('active'));
+              item.classList.add('active');
+              renderProjectHistory(pName, pData.snapshots);
+            });
+            sidebarList.appendChild(item);
+          }
+        }
+        modalHistory.classList.remove('hidden');
+      });
+    }
+    if (btnCloseHistory) btnCloseHistory.addEventListener('click', () => modalHistory.classList.add('hidden'));
+
   }
 }
+
