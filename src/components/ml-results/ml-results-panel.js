@@ -1,4 +1,5 @@
 import { getDOM } from '../../utils/dom-references.js';
+import { calculateAIWeights } from '../../services/ai-weight-service.js';
 
 export class MlResultsPanel {
   static mlWeights = {};
@@ -53,7 +54,8 @@ export class MlResultsPanel {
           MlResultsPanel.mlWeights[modelName] = 1.0;
         }
         const dynamicScore = MlResultsPanel.getModelScore(modelName, predictions);
-        sumScore += dynamicScore * MlResultsPanel.mlWeights[modelName];
+        // As per request: tqi = ((10-ml1)+(10-ml2))/n. We incorporate the model weight here.
+        sumScore += (10 - dynamicScore) * MlResultsPanel.mlWeights[modelName];
         validModelCount++;
       }
     }
@@ -67,9 +69,22 @@ export class MlResultsPanel {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <h2>ML INTEGRATION</h2>
-          <button id="adjust-weights-btn" class="adjust-weights-btn">Adjust Weights</button>
+          <button id="ai-panel-btn" class="adjust-weights-btn" style="margin-left: auto; margin-right: 10px; background-color: #8b5cf6;">AI Weights</button>
+          <button id="adjust-weights-btn" class="adjust-weights-btn" style="margin-left: 0;">Manual Weights</button>
         </div>
         
+        <!-- AI Control Panel -->
+        <div id="ai-panel" class="weights-panel hidden" style="border-color: #c4b5fd; background-color: #f5f3ff;">
+          <h3 style="color: #6d28d9; border-bottom-color: #ddd6fe;">Generate Weights with AI</h3>
+          <p style="font-size: 13px; color: #5b21b6; margin-bottom: 12px;">Ensure VITE_GROQ_API_KEY is set in your .env file.</p>
+          <textarea id="ai-project-desc" placeholder="Describe the project (e.g. Government Tax Administration System)" style="width: 100%; min-height: 80px; padding: 10px; border-radius: 6px; border: 1px solid #c4b5fd; margin-bottom: 12px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 15px;">
+             <span id="ai-status" style="font-size: 13px; color: #d97706; font-weight: 500;"></span>
+             <button id="ai-generate-btn" class="adjust-weights-btn" style="background-color: #7c3aed;">Generate with Groq</button>
+          </div>
+          <div id="ai-reasoning" class="hidden" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd6fe; font-size: 13px; color: #4c1d95; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></div>
+        </div>
+
         <!-- Weights Control Panel (hidden by default) -->
         <div id="weights-panel" class="weights-panel hidden">
           <h3>Adjust ML Model Weights</h3>
@@ -200,12 +215,126 @@ export class MlResultsPanel {
       });
     });
 
-    // Weights panel toggle
+    // Weights panels toggle
     const adjustBtn = mlResultsPanel.querySelector('#adjust-weights-btn');
+    const aiBtn = mlResultsPanel.querySelector('#ai-panel-btn');
     const weightsPanel = mlResultsPanel.querySelector('#weights-panel');
+    const aiPanel = mlResultsPanel.querySelector('#ai-panel');
+    
     if (adjustBtn && weightsPanel) {
       adjustBtn.addEventListener('click', () => {
         weightsPanel.classList.toggle('hidden');
+        if (aiPanel) aiPanel.classList.add('hidden');
+      });
+    }
+    
+    if (aiBtn && aiPanel) {
+      aiBtn.addEventListener('click', () => {
+        aiPanel.classList.toggle('hidden');
+        if (weightsPanel) weightsPanel.classList.add('hidden');
+      });
+    }
+
+    // AI Generation
+    const aiGenerateBtn = mlResultsPanel.querySelector('#ai-generate-btn');
+    if (aiGenerateBtn) {
+      aiGenerateBtn.addEventListener('click', async () => {
+        const descInput = mlResultsPanel.querySelector('#ai-project-desc');
+        const statusEl = mlResultsPanel.querySelector('#ai-status');
+        const reasoningEl = mlResultsPanel.querySelector('#ai-reasoning');
+        
+        const description = descInput.value.trim();
+        if (!description) {
+          statusEl.textContent = "Please enter a project description.";
+          return;
+        }
+
+        try {
+          aiGenerateBtn.disabled = true;
+          statusEl.textContent = "Analyzing project via Groq API...";
+          statusEl.style.color = "#d97706";
+          
+          // Collect found CWEs
+          const foundCwes = [];
+          for (const m of models) {
+             if (predictions[m].inputs) {
+               for (const i of predictions[m].inputs) {
+                 if (i.value > 0 && !foundCwes.includes(i.cwe)) {
+                   foundCwes.push(i.cwe);
+                 }
+               }
+             }
+          }
+
+          const aiResult = await calculateAIWeights(description, foundCwes);
+          
+          // Apply results to ML model weights
+          if (aiResult.characteristics && Array.isArray(aiResult.characteristics)) {
+            let logHtml = `<b>Categorized Domain:</b> ${aiResult.domain}\n\n`;
+            for (const char of aiResult.characteristics) {
+              const mName = char.name; // e.g. "Security"
+              if (MlResultsPanel.mlWeights[mName] !== undefined) {
+                MlResultsPanel.mlWeights[mName] = char.weight;
+                
+                // Update manual sliders to match AI output
+                const safeId = mName.replace(/[^a-zA-Z0-9_-]/g, '-');
+                const slider = mlResultsPanel.querySelector('#weight-' + safeId);
+                const valSpan = mlResultsPanel.querySelector('#weight-val-' + safeId);
+                if (slider) slider.value = char.weight;
+                if (valSpan) valSpan.textContent = char.weight.toFixed(1);
+              }
+              
+              logHtml += `<b>${char.name} (${char.priority}) - Weight: ${char.weight}</b>\n`;
+              char.reasons.forEach((r, idx) => {
+                logHtml += `  ${idx + 1}. ${r.reason} (Authority: ${r.authority})\n`;
+                if (r.affected_cwes.length) logHtml += `     Affected: ${r.affected_cwes.join(', ')}\n`;
+              });
+              logHtml += '\n';
+            }
+            
+            // Apply CWE penalties
+            if (aiResult.cwePenalties) {
+               logHtml += `<b>CWE Penalties Applied:</b>\n`;
+               for (const [cwe, penalty] of Object.entries(aiResult.cwePenalties)) {
+                  logHtml += `  ${cwe}: -${penalty}\n`;
+                  // Update cweWeights
+                  for (const m of models) {
+                     if (MlResultsPanel.cweWeights[m] && MlResultsPanel.cweWeights[m][cwe] !== undefined) {
+                        // Apply penalty (reduce weight)
+                        MlResultsPanel.cweWeights[m][cwe] = Math.max(0, MlResultsPanel.cweWeights[m][cwe] - penalty);
+                        
+                        // Update UI input
+                        const cweInput = mlResultsPanel.querySelector(`.ml-cwe-weight-input[data-model="${m}"][data-cwe="${cwe}"]`);
+                        if (cweInput) {
+                           cweInput.value = MlResultsPanel.cweWeights[m][cwe].toFixed(4);
+                        }
+                     }
+                  }
+               }
+            }
+
+            reasoningEl.innerHTML = logHtml;
+            reasoningEl.classList.remove('hidden');
+            
+            // Re-render completely or trigger TQI recalc logic
+            // Easiest is to simulate an input event on one of the sliders to trigger recalculations
+            const firstSlider = mlResultsPanel.querySelector('.weight-control-row input[type="range"]');
+            if (firstSlider) {
+              const ev = new Event('input');
+              firstSlider.dispatchEvent(ev);
+            }
+
+            statusEl.textContent = "AI Analysis Complete!";
+            statusEl.style.color = "#16a34a"; // green
+          }
+          
+        } catch (error) {
+          console.error(error);
+          statusEl.textContent = "Error: " + error.message;
+          statusEl.style.color = "#dc2626"; // red
+        } finally {
+          aiGenerateBtn.disabled = false;
+        }
       });
     }
 
@@ -228,7 +357,7 @@ export class MlResultsPanel {
         for (const m of models) {
           if (!predictions[m].error && typeof predictions[m].score === 'number') {
             const mScore = MlResultsPanel.getModelScore(m, predictions);
-            newSum += mScore * MlResultsPanel.mlWeights[m];
+            newSum += (10 - mScore) * MlResultsPanel.mlWeights[m];
             validCount++;
           }
         }
@@ -264,7 +393,7 @@ export class MlResultsPanel {
         for (const m of models) {
           if (!predictions[m].error && typeof predictions[m].score === 'number') {
             const mScore = MlResultsPanel.getModelScore(m, predictions);
-            newTqiSum += mScore * MlResultsPanel.mlWeights[m];
+            newTqiSum += (10 - mScore) * MlResultsPanel.mlWeights[m];
             validCount++;
           }
         }
