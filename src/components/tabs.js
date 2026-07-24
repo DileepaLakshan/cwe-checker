@@ -70,6 +70,7 @@ function createTabElement(tab, activeTab) {
 
 function showWelcomeScreen() {
   const dom = getDOM();
+  if (dom.dynamicView) dom.dynamicView.style.display = 'flex';
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'flex';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
@@ -80,6 +81,7 @@ function showWelcomeScreen() {
 
 function showEditorScreen() {
   const dom = getDOM();
+  if (dom.dynamicView) dom.dynamicView.style.display = 'none';
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
   if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
@@ -90,6 +92,7 @@ function showEditorScreen() {
 
 export function showScanResultsScreen() {
   const dom = getDOM();
+  if (dom.dynamicView) dom.dynamicView.style.display = 'flex';
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
   if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
@@ -100,6 +103,7 @@ export function showScanResultsScreen() {
 
 export function showMlResultsScreen() {
   const dom = getDOM();
+  if (dom.dynamicView) dom.dynamicView.style.display = 'flex';
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';

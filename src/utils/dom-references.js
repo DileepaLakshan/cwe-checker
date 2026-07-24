@@ -9,6 +9,7 @@ export function initDOMReferences() {
     lineNumbers: document.getElementById('line-numbers'),
     lineNumbersContainer: document.querySelector('.line-numbers-container'),
     scanBtn: document.getElementById('scanBtn'),
+    dynamicView: document.getElementById('dynamic-view'),
     welcomeScreen: document.getElementById('welcome-screen-component'),
     resultsPanel: document.getElementById('scan-results-panel'),
     mlResultsPanel: document.getElementById('ml-results-component'),
