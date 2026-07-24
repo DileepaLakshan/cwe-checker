@@ -4,6 +4,7 @@ import { calculateAIWeights } from '../../services/ai-weight-service.js';
 export class MlResultsPanel {
   static mlWeights = {};
   static cweWeights = {};
+  static globalTqiPenalty = 0;
 
   static getModelScore(modelName, predictions) {
     const modelData = predictions[modelName];
@@ -65,11 +66,16 @@ export class MlResultsPanel {
     if (validModelCount > 0) {
       mathString = mathString.slice(0, -3); // remove last " + "
       mathString += ` ] / ${validModelCount}`;
+      if (MlResultsPanel.globalTqiPenalty > 0) {
+        mathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
+      }
     } else {
       mathString = "No models available for calculation.";
     }
     
-    const tqiScore = validModelCount > 0 ? (sumScore / validModelCount).toFixed(4) : "0.0000";
+    let tqiRaw = validModelCount > 0 ? (sumScore / validModelCount) : 0;
+    tqiRaw = Math.max(0, tqiRaw - MlResultsPanel.globalTqiPenalty);
+    const tqiScore = tqiRaw.toFixed(4);
 
     let html = `
       <div class="ml-results-container">
@@ -286,10 +292,13 @@ export class MlResultsPanel {
              }
           }
 
-          const aiResult = await calculateAIWeights(description, foundCwes);
+          const aiResult = await calculateAIWeights(description, foundCwes, models);
           
           // Apply results to ML model weights
           if (aiResult.characteristics && Array.isArray(aiResult.characteristics)) {
+            // Sort by global rank so the UI prints them in order
+            aiResult.characteristics.sort((a, b) => a.global_rank - b.global_rank);
+            
             let logHtml = `<b>Categorized Domain:</b> ${aiResult.domain}\n\n`;
             for (const char of aiResult.characteristics) {
               const mName = char.name; // e.g. "Security"
@@ -304,33 +313,25 @@ export class MlResultsPanel {
                 if (valSpan) valSpan.textContent = char.weight.toFixed(1);
               }
               
-              logHtml += `<b>${char.name} (${char.priority}) - Weight: ${char.weight}</b>\n`;
-              char.reasons.forEach((r, idx) => {
-                logHtml += `  ${idx + 1}. ${r.reason} (Authority: ${r.authority})\n`;
+              logHtml += `<b>${char.global_rank}. ${char.name} (${char.priority}) - Weight: ${char.weight}</b>\n`;
+              char.reasons.forEach((r) => {
+                logHtml += `  - [Global Rank ${r.global_rank}] ${r.reason} (Authority: ${r.authority})\n`;
                 if (r.affected_cwes.length) logHtml += `     Affected: ${r.affected_cwes.join(', ')}\n`;
               });
               logHtml += '\n';
             }
             
             // Apply CWE penalties
-            if (aiResult.cwePenalties) {
-               logHtml += `<b>CWE Penalties Applied:</b>\n`;
-               for (const [cwe, penalty] of Object.entries(aiResult.cwePenalties)) {
-                  logHtml += `  ${cwe}: -${penalty}\n`;
-                  // Update cweWeights
-                  for (const m of models) {
-                     if (MlResultsPanel.cweWeights[m] && MlResultsPanel.cweWeights[m][cwe] !== undefined) {
-                        // Apply penalty (reduce weight)
-                        MlResultsPanel.cweWeights[m][cwe] = Math.max(0, MlResultsPanel.cweWeights[m][cwe] - penalty);
-                        
-                        // Update UI input
-                        const cweInput = mlResultsPanel.querySelector(`.ml-cwe-weight-input[data-model="${m}"][data-cwe="${cwe}"]`);
-                        if (cweInput) {
-                           cweInput.value = MlResultsPanel.cweWeights[m][cwe].toFixed(4);
-                        }
-                     }
-                  }
+            if (aiResult.cwePenalties && aiResult.cwePenalties.length > 0) {
+               let totalPenalty = 0;
+               logHtml += `<b>CWE Penalties Applied (Direct TQI Deductions):</b>\n`;
+               for (const pObj of aiResult.cwePenalties) {
+                  logHtml += `  ${pObj.cweId}: -${pObj.penalty}\n`;
+                  totalPenalty += pObj.penalty;
                }
+               MlResultsPanel.globalTqiPenalty = totalPenalty;
+            } else {
+               MlResultsPanel.globalTqiPenalty = 0;
             }
 
             reasoningEl.innerHTML = logHtml;
@@ -362,9 +363,14 @@ export class MlResultsPanel {
             if (validCount > 0) {
               newMathString = newMathString.slice(0, -3);
               newMathString += ` ] / ${validCount}`;
+              if (MlResultsPanel.globalTqiPenalty > 0) {
+                newMathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
+              }
             }
             
-            const newTqi = validCount > 0 ? (newTqiSum / validCount).toFixed(4) : "0.0000";
+            let newTqiRaw = validCount > 0 ? (newTqiSum / validCount) : 0;
+            newTqiRaw = Math.max(0, newTqiRaw - MlResultsPanel.globalTqiPenalty);
+            const newTqi = newTqiRaw.toFixed(4);
             const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
             if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
             
@@ -415,9 +421,14 @@ export class MlResultsPanel {
         if (validCount > 0) {
           newMathString = newMathString.slice(0, -3);
           newMathString += ` ] / ${validCount}`;
+          if (MlResultsPanel.globalTqiPenalty > 0) {
+            newMathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
+          }
         }
         
-        const newTqi = validCount > 0 ? (newSum / validCount).toFixed(4) : "0.0000";
+        let newTqiRaw = validCount > 0 ? (newSum / validCount) : 0;
+        newTqiRaw = Math.max(0, newTqiRaw - MlResultsPanel.globalTqiPenalty);
+        const newTqi = newTqiRaw.toFixed(4);
         const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
         if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
         
@@ -463,9 +474,14 @@ export class MlResultsPanel {
         if (validCount > 0) {
           newMathString = newMathString.slice(0, -3);
           newMathString += ` ] / ${validCount}`;
+          if (MlResultsPanel.globalTqiPenalty > 0) {
+            newMathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
+          }
         }
         
-        const newTqi = validCount > 0 ? (newTqiSum / validCount).toFixed(4) : "0.0000";
+        let newTqiRaw = validCount > 0 ? (newTqiSum / validCount) : 0;
+        newTqiRaw = Math.max(0, newTqiRaw - MlResultsPanel.globalTqiPenalty);
+        const newTqi = newTqiRaw.toFixed(4);
         const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
         if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
         

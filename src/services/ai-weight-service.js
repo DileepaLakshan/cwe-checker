@@ -1,5 +1,6 @@
 import { ChatGroq } from "@langchain/groq";
 import { PromptTemplate } from "@langchain/core/prompts";
+import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { z } from "zod";
 
 const systemPrompt = `
@@ -140,9 +141,15 @@ Every recommendation shall be evidence-based.
 ________________________________________
 Frame 8 — Instructions
 Analyze the following PROJECT DESCRIPTION and FOUND CWES (if any).
-Provide weights for the standard ML qualitative characteristics (e.g., Security, Maintainability, Reliability, Performance, etc.) on a scale.
+You MUST evaluate and provide a weight for EVERY SINGLE ONE of the following Qualitative Characteristics:
+{models}
+
+First, rank these characteristics globally from 1 (most critical) to N (least critical). Ensure NO TWO characteristics share the same global rank.
+Then, assign mathematical weights that correspond to this global ranking (e.g., Rank 1 gets the highest weight).
 Also, if specific CWEs are highly critical to this domain, provide specific weight reductions (penalties) for them.
 You must return the result as a strict JSON object matching the requested schema.
+
+{format_instructions}
 
 PROJECT DESCRIPTION:
 {projectDescription}
@@ -156,46 +163,52 @@ const outputSchema = z.object({
   characteristics: z.array(
     z.object({
       name: z.string().describe("The name of the qualitative characteristic (e.g. Security, Maintainability)"),
+      global_rank: z.number().describe("The global ranking of this characteristic from 1 (most critical) to N (least critical). No duplicates allowed."),
       priority: z.enum(["Critical", "High", "Medium", "Low"]).describe("Priority level"),
       weight: z.number().describe("The assigned mathematical weight for this characteristic (e.g. 1.0 to 3.0)"),
       reasons: z.array(
         z.object({
           reason: z.string().describe("Evidence-based reason"),
+          global_rank: z.number().describe("The global priority rank of this specific reason across ALL reasons (e.g., 1 is the most critical reason overall)"),
           authority: z.string().describe("Supporting Authority or Standard"),
           affected_cwes: z.array(z.string()).describe("Affected CWE Categories"),
           representative_cwes: z.array(z.string()).describe("Representative CWE IDs")
         })
-      ).describe("Three evidence-based reasons explaining why this is important")
+      ).describe("Three evidence-based reasons explaining why this is important, globally ranked.")
     })
   ).describe("List of qualitative characteristics evaluated"),
-  cwePenalties: z.record(
-    z.string(), 
-    z.number()
-  ).describe("Map of specific CWE IDs to weight reductions/penalties (e.g. {'CWE-79': 0.5})")
+  cwePenalties: z.array(
+    z.object({
+      cweId: z.string().describe("The CWE ID, e.g. CWE-79"),
+      penalty: z.number().describe("The weight reduction penalty, e.g. 0.5")
+    })
+  ).describe("List of specific CWE IDs and their weight reductions/penalties")
 });
 
-export async function calculateAIWeights(projectDescription, foundCwes = []) {
+export async function calculateAIWeights(projectDescription, foundCwes = [], models = []) {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey || apiKey === 'your_groq_api_key_here') {
     throw new Error("Groq API Key is missing. Please set VITE_GROQ_API_KEY in the .env file.");
   }
 
-  // Use temperature 0 for deterministic outputs as requested
+  // Use temperature 0.1 for stability with complex tool calls
   const llm = new ChatGroq({
     apiKey: apiKey,
     model: "llama-3.3-70b-versatile", // Updated to a currently supported Groq model
-    temperature: 0,
+    temperature: 0.1,
   });
 
-  const structuredLlm = llm.withStructuredOutput(outputSchema);
+  const parser = StructuredOutputParser.fromZodSchema(outputSchema);
 
   const prompt = PromptTemplate.fromTemplate(systemPrompt);
   
-  const chain = prompt.pipe(structuredLlm);
+  const chain = prompt.pipe(llm).pipe(parser);
 
   const response = await chain.invoke({
     projectDescription,
-    foundCwes: foundCwes.length > 0 ? foundCwes.join(", ") : "None"
+    foundCwes: foundCwes.length > 0 ? foundCwes.join(", ") : "None",
+    models: models.length > 0 ? models.join(", ") : "Security, Maintainability, Reliability, Performance Efficiency, Usability, Portability, Functional Suitability",
+    format_instructions: parser.getFormatInstructions()
   });
 
   return response;
