@@ -146,6 +146,7 @@ You MUST evaluate and provide a weight for EVERY SINGLE ONE of the following Qua
 
 First, rank these characteristics globally from 1 (most critical) to N (least critical). Ensure NO TWO characteristics share the same global rank.
 Then, assign mathematical weights that correspond to this global ranking (e.g., Rank 1 gets the highest weight).
+For EACH characteristic, you MUST provide AT LEAST 3 distinct evidence-based reasons.
 Also, if specific CWEs are highly critical to this domain, provide specific weight reductions (penalties) for them.
 You must return the result as a strict JSON object matching the requested schema.
 
