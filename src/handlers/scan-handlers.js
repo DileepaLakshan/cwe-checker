@@ -40,7 +40,7 @@ export function registerScanHandlers() {
       try { require('node:fs').unlinkSync(outputPath); } catch (e) {}
     }
     
-    const command = `"${trivyPath}" fs --format json --output "${outputPath}" "${targetFolder}"`;
+    const command = `"${trivyPath}" fs --scanners vuln --offline-scan --timeout 15m --format json --output "${outputPath}" "${targetFolder}"`;
 
     return new Promise((resolve, reject) => {
       exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
