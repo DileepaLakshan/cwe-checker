@@ -773,6 +773,32 @@ export class MlResultsPanel {
         const tqiColor = tqiDelta > 0 ? '#16a34a' : (tqiDelta < 0 ? '#dc2626' : '#64748b');
         const tqiSign = tqiDelta > 0 ? '+' : '';
 
+        let mlDiffHtml = '';
+        const allModels = new Set([...Object.keys(snapA.modelScores || {}), ...Object.keys(snapB.modelScores || {})]);
+        allModels.forEach(m => {
+           const sA = snapA.modelScores[m] || 0;
+           const sB = snapB.modelScores[m] || 0;
+           if (sA !== sB) {
+             const diff = sB - sA;
+             const diffClass = diff < 0 ? '#16a34a' : (diff > 0 ? '#dc2626' : '#64748b');
+             const diffSign = diff > 0 ? '+' : '';
+             mlDiffHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+               <span>${m}:</span> 
+               <span>${sA.toFixed(2)} &rarr; ${sB.toFixed(2)} (<strong style="color:${diffClass}">${diffSign}${diff.toFixed(2)}</strong>)</span>
+             </div>`;
+           }
+        });
+        
+        let mlSection = '';
+        if (mlDiffHtml) {
+           mlSection = `
+             <div style="margin-top: 15px; font-size: 13px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+               <strong style="color: #475569; display:block; margin-bottom: 8px;">Model Score Changes (Lower = Better Quality)</strong>
+               ${mlDiffHtml}
+             </div>
+           `;
+        }
+
         let diffHtml = `
           <div class="vc-version-diff" style="border-left: 4px solid #3b82f6;">
             <div class="vc-diff-header">
@@ -796,6 +822,7 @@ export class MlResultsPanel {
                 <div style="color: #b91c1c; margin-top:4px;">${newCwes.length ? newCwes.join(', ') : '-'}</div>
               </div>
             </div>
+            ${mlSection}
           </div>
         `;
         versionDiffs.innerHTML += diffHtml;
