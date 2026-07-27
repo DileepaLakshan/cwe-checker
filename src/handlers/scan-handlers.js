@@ -16,7 +16,7 @@ export function registerScanHandlers() {
       try { require('node:fs').unlinkSync(outputPath); } catch (e) {}
     }
     
-    const command = `"${opengrepPath}" scan --config auto --json --output "${outputPath}" "${targetFolder}"`;
+    const command = `"${opengrepPath}" scan --config "p/default" --config "p/java" --config "p/javascript" --config "p/secrets" --json --output "${outputPath}" "${targetFolder}"`;
 
     return new Promise((resolve, reject) => {
       exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {

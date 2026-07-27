@@ -30,6 +30,52 @@ export class MlResultsPanel {
     return sum;
   }
 
+  static calculateTqi(models, predictions) {
+    let tqiSum = 0;
+    let sumSquaredWeights = 0;
+    let validCount = 0;
+    let mathString = "TQI = [ ";
+    
+    for (const m of models) {
+      if (!predictions[m].error && typeof predictions[m].score === 'number') {
+        const mScore = MlResultsPanel.getModelScore(m, predictions);
+        const w = MlResultsPanel.mlWeights[m] !== undefined ? MlResultsPanel.mlWeights[m] : 1.0;
+        
+        // Exponential decay: Score drops from 100 to 0 exponentially as penalty increases.
+        // Divided by 8 to gently scale massive enterprise projects (like Ghost CMS).
+        const charScore = 100 * Math.exp(-mScore / 8);
+        
+        // Squared weight for massive impact
+        const wSquared = w * w;
+        
+        tqiSum += charScore * wSquared;
+        sumSquaredWeights += wSquared;
+        validCount++;
+        
+        mathString += `${m}(${charScore.toFixed(2)} * ${wSquared.toFixed(2)}) + `;
+      }
+    }
+    
+    let finalTqi = "0.0000";
+    if (validCount > 0) {
+      mathString = mathString.slice(0, -3); // remove last " + "
+      const divisor = sumSquaredWeights > 0 ? sumSquaredWeights : 1;
+      mathString += ` ] / ${divisor.toFixed(2)}`;
+      
+      if (MlResultsPanel.globalTqiPenalty > 0) {
+        mathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
+      }
+      
+      let tqiRaw = (tqiSum / divisor);
+      tqiRaw = Math.max(0, tqiRaw - MlResultsPanel.globalTqiPenalty);
+      finalTqi = tqiRaw.toFixed(4);
+    } else {
+      mathString = "No models available for calculation.";
+    }
+    
+    return { finalTqi, mathString };
+  }
+
   static render(mlData) {
     const { mlResultsPanel } = getDOM();
     if (!mlResultsPanel) return;
@@ -45,37 +91,12 @@ export class MlResultsPanel {
     const models = Object.keys(predictions).sort();
     
     // Calculate TQI
-    let sumScore = 0;
-    let validModelCount = 0;
-    let mathString = "TQI = [ ";
-    
     for (const modelName of models) {
-      const modelData = predictions[modelName];
-      if (!modelData.error && typeof modelData.score === 'number') {
-        if (MlResultsPanel.mlWeights[modelName] === undefined) {
-          MlResultsPanel.mlWeights[modelName] = 1.0;
-        }
-        const dynamicScore = MlResultsPanel.getModelScore(modelName, predictions);
-        const weight = MlResultsPanel.mlWeights[modelName];
-        sumScore += (10 - dynamicScore) * weight;
-        mathString += `(10 - ${dynamicScore.toFixed(4)}) * ${weight.toFixed(1)} + `;
-        validModelCount++;
+      if (MlResultsPanel.mlWeights[modelName] === undefined) {
+         MlResultsPanel.mlWeights[modelName] = 1.0;
       }
     }
-    
-    if (validModelCount > 0) {
-      mathString = mathString.slice(0, -3); // remove last " + "
-      mathString += ` ] / ${validModelCount}`;
-      if (MlResultsPanel.globalTqiPenalty > 0) {
-        mathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
-      }
-    } else {
-      mathString = "No models available for calculation.";
-    }
-    
-    let tqiRaw = validModelCount > 0 ? (sumScore / validModelCount) : 0;
-    tqiRaw = Math.max(0, tqiRaw - MlResultsPanel.globalTqiPenalty);
-    const tqiScore = tqiRaw.toFixed(4);
+    const { finalTqi: tqiScore, mathString } = MlResultsPanel.calculateTqi(models, predictions);
 
     let html = `
       <div class="ml-results-container">
@@ -112,11 +133,15 @@ export class MlResultsPanel {
               return `
                 <div class="weight-control-row">
                   <label for="weight-${safeM}">${m}</label>
-                  <input type="range" id="weight-${safeM}" data-model="${m}" min="0" max="2" step="0.1" value="${MlResultsPanel.mlWeights[m]}">
+                  <input type="range" id="weight-${safeM}" data-model="${m}" min="0" max="4" step="0.1" value="${MlResultsPanel.mlWeights[m]}">
                   <span id="weight-val-${safeM}">${MlResultsPanel.mlWeights[m].toFixed(1)}</span>
                 </div>
               `;
             }).join('')}
+          </div>
+          <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+             <label for="global-penalty-input" style="color: #dc2626; font-weight:bold; font-size: 14px;">Global TQI Penalty</label>
+             <input type="number" id="global-penalty-input" min="0" step="0.1" value="${MlResultsPanel.globalTqiPenalty.toFixed(4)}" style="width: 80px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right;">
           </div>
         </div>
         
@@ -208,7 +233,7 @@ export class MlResultsPanel {
             </div>
           </div>
 
-          <div id="tqi-math-breakdown" style="margin-top: 30px; font-family: monospace; font-size: 13px; color: #475569; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1; max-width: 800px; text-align: center; line-height: 1.5;">
+          <div id="tqi-math-breakdown" style="margin-top: 30px; font-family: monospace; font-size: 13px; color: #475569; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e1; max-width: 800px; text-align: center; line-height: 1.5; word-wrap: break-word;">
             <!-- Math string injected here -->
           </div>
 
@@ -400,44 +425,23 @@ export class MlResultsPanel {
             reasoningEl.classList.remove('hidden');
             
             // Recalculate and update all individual model scores and the global TQI
-            let newTqiSum = 0;
-            let validCount = 0;
-            let newMathString = "TQI = [ ";
-            
             for (const m of models) {
               if (!predictions[m].error && typeof predictions[m].score === 'number') {
                 const newModelScore = MlResultsPanel.getModelScore(m, predictions);
-                const w = MlResultsPanel.mlWeights[m];
-                
-                // Update Model Score Node
                 const safeModelId = m.replace(/[^a-zA-Z0-9_-]/g, '-');
                 const modelNode = mlResultsPanel.querySelector(`[data-model-id="edges-${safeModelId}"] .ml-score`);
                 if (modelNode) {
                   modelNode.textContent = newModelScore.toFixed(4);
                 }
-
-                newTqiSum += (10 - newModelScore) * w;
-                newMathString += `(10 - ${newModelScore.toFixed(4)}) * ${w.toFixed(1)} + `;
-                validCount++;
               }
             }
             
-            if (validCount > 0) {
-              newMathString = newMathString.slice(0, -3);
-              newMathString += ` ] / ${validCount}`;
-              if (MlResultsPanel.globalTqiPenalty > 0) {
-                newMathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
-              }
-            }
-            
-            let newTqiRaw = validCount > 0 ? (newTqiSum / validCount) : 0;
-            newTqiRaw = Math.max(0, newTqiRaw - MlResultsPanel.globalTqiPenalty);
-            const newTqi = newTqiRaw.toFixed(4);
+            const { finalTqi, mathString } = MlResultsPanel.calculateTqi(models, predictions);
             const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
-            if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
+            if (tqiScoreNode) tqiScoreNode.textContent = finalTqi;
             
             const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
-            if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Calculation:</b> ${newMathString} = <b style="color: #28a745;">${newTqi}</b>`;
+            if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
 
             statusEl.textContent = "AI Analysis Complete!";
             statusEl.style.color = "#16a34a"; // green
@@ -467,37 +471,27 @@ export class MlResultsPanel {
         if (valSpan) valSpan.textContent = newVal.toFixed(1);
         
         // Recalculate TQI
-        let newSum = 0;
-        let validCount = 0;
-        let newMathString = "TQI = [ ";
-        for (const m of models) {
-          if (!predictions[m].error && typeof predictions[m].score === 'number') {
-            const mScore = MlResultsPanel.getModelScore(m, predictions);
-            const w = MlResultsPanel.mlWeights[m];
-            newSum += (10 - mScore) * w;
-            newMathString += `(10 - ${mScore.toFixed(4)}) * ${w.toFixed(1)} + `;
-            validCount++;
-          }
-        }
-        
-        if (validCount > 0) {
-          newMathString = newMathString.slice(0, -3);
-          newMathString += ` ] / ${validCount}`;
-          if (MlResultsPanel.globalTqiPenalty > 0) {
-            newMathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
-          }
-        }
-        
-        let newTqiRaw = validCount > 0 ? (newSum / validCount) : 0;
-        newTqiRaw = Math.max(0, newTqiRaw - MlResultsPanel.globalTqiPenalty);
-        const newTqi = newTqiRaw.toFixed(4);
+        const { finalTqi, mathString } = MlResultsPanel.calculateTqi(models, predictions);
         const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
-        if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
+        if (tqiScoreNode) tqiScoreNode.textContent = finalTqi;
         
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
-        if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Calculation:</b> ${newMathString} = <b style="color: #28a745;">${newTqi}</b>`;
+        if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
       });
     });
+
+    // Global Penalty Manual Input
+    const globalPenaltyInput = mlResultsPanel.querySelector('#global-penalty-input');
+    if (globalPenaltyInput) {
+      globalPenaltyInput.addEventListener('input', (e) => {
+        MlResultsPanel.globalTqiPenalty = parseFloat(e.target.value) || 0;
+        const { finalTqi, mathString } = MlResultsPanel.calculateTqi(models, predictions);
+        const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
+        if (tqiScoreNode) tqiScoreNode.textContent = finalTqi;
+        const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
+        if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
+      });
+    }
 
     // CWE Weight inputs
     const cweWeightInputs = mlResultsPanel.querySelectorAll('.ml-cwe-weight-input');
@@ -520,35 +514,12 @@ export class MlResultsPanel {
         }
         
         // Recalculate TQI
-        let newTqiSum = 0;
-        let validCount = 0;
-        let newMathString = "TQI = [ ";
-        for (const m of models) {
-          if (!predictions[m].error && typeof predictions[m].score === 'number') {
-            const mScore = MlResultsPanel.getModelScore(m, predictions);
-            const w = MlResultsPanel.mlWeights[m];
-            newTqiSum += (10 - mScore) * w;
-            newMathString += `(10 - ${mScore.toFixed(4)}) * ${w.toFixed(1)} + `;
-            validCount++;
-          }
-        }
-        
-        if (validCount > 0) {
-          newMathString = newMathString.slice(0, -3);
-          newMathString += ` ] / ${validCount}`;
-          if (MlResultsPanel.globalTqiPenalty > 0) {
-            newMathString += ` - ${MlResultsPanel.globalTqiPenalty.toFixed(4)} (Penalties)`;
-          }
-        }
-        
-        let newTqiRaw = validCount > 0 ? (newTqiSum / validCount) : 0;
-        newTqiRaw = Math.max(0, newTqiRaw - MlResultsPanel.globalTqiPenalty);
-        const newTqi = newTqiRaw.toFixed(4);
+        const { finalTqi, mathString } = MlResultsPanel.calculateTqi(models, predictions);
         const tqiScoreNode = mlResultsPanel.querySelector('.tqi-node .ml-score');
-        if (tqiScoreNode) tqiScoreNode.textContent = newTqi;
+        if (tqiScoreNode) tqiScoreNode.textContent = finalTqi;
         
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
-        if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Calculation:</b> ${newMathString} = <b style="color: #28a745;">${newTqi}</b>`;
+        if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
       });
     });
 
@@ -567,6 +538,7 @@ export class MlResultsPanel {
         let history = JSON.parse(localStorage.getItem('cwe-history') || '{"projects":{}}');
         datalist.innerHTML = Object.keys(history.projects).map(p => `<option value="${p}">`).join('');
         modalSave.classList.remove('hidden');
+        setTimeout(() => inputProjectName.focus(), 50);
       });
     }
     const hideSaveModal = () => { modalSave.classList.add('hidden'); inputProjectName.value = ''; inputVersionName.value = ''; };
@@ -586,8 +558,11 @@ export class MlResultsPanel {
         const cTqi = currentTqiNode ? currentTqiNode.textContent : "0.0000";
         
         const allCwes = new Set();
-        Object.values(MlResultsPanel.cweWeights).forEach(cweMap => {
-          Object.keys(cweMap).forEach(cwe => allCwes.add(cwe));
+        document.querySelectorAll('.vuln-id').forEach(node => {
+          const cweStr = node.textContent.trim();
+          if (cweStr.startsWith('CWE-')) {
+             allCwes.add(cweStr);
+          }
         });
 
         const modelScores = {};
@@ -658,8 +633,35 @@ export class MlResultsPanel {
       const firstSlider = mlResultsPanel.querySelector('.weight-control-row input[type="range"]');
       if (firstSlider) firstSlider.dispatchEvent(new Event('input'));
 
-      alert("AI Weights and Penalties successfully restored!");
+      // Update Global Penalty manual input if it exists
+      const gpInput = mlResultsPanel.querySelector('#global-penalty-input');
+      if (gpInput) gpInput.value = MlResultsPanel.globalTqiPenalty.toFixed(4);
+
       modalHistory.classList.add('hidden');
+    };
+
+    window.deleteVcSnapshot = function(snapId, pName) {
+      if (!confirm("Are you sure you want to delete this snapshot?")) return;
+      
+      const history = JSON.parse(localStorage.getItem('cwe-history') || '{"projects":{}}');
+      if (!history.projects[pName]) return;
+      
+      history.projects[pName].snapshots = history.projects[pName].snapshots.filter(s => s.id !== snapId);
+      
+      if (history.projects[pName].snapshots.length === 0) {
+         delete history.projects[pName];
+         localStorage.setItem('cwe-history', JSON.stringify(history));
+         btnHistory.click(); // Reload sidebar
+      } else {
+         localStorage.setItem('cwe-history', JSON.stringify(history));
+         btnHistory.click(); // Reset sidebar
+         setTimeout(() => {
+             const items = sidebarList.querySelectorAll('.vc-project-item');
+             items.forEach(el => {
+                 if (el.textContent.startsWith(pName)) el.click();
+             });
+         }, 10);
+      }
     };
 
     const drawGraph = (snapshots) => {
@@ -755,7 +757,10 @@ export class MlResultsPanel {
                <strong>${baseSnap.versionName}</strong> (Baseline)
                <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(baseSnap.timestamp).toLocaleString()} | Initial TQI: ${baseSnap.tqiScore}</div>
             </div>
-            <button class="vc-restore-btn" onclick="restoreVcWeights('${baseSnap.id}', '${pName}')">Restore Weights</button>
+            <div style="display:flex; gap: 8px;">
+               <button class="vc-restore-btn" onclick="restoreVcWeights('${baseSnap.id}', '${pName}')">Restore</button>
+               <button class="vc-delete-btn" onclick="deleteVcSnapshot('${baseSnap.id}', '${pName}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer;">Delete</button>
+            </div>
           </div>
         </div>
       `;
@@ -809,7 +814,10 @@ export class MlResultsPanel {
                    TQI: ${snapB.tqiScore} <span style="color: ${tqiColor}">(${tqiSign}${tqiDelta.toFixed(4)})</span>
                  </div>
               </div>
-              <button class="vc-restore-btn" onclick="restoreVcWeights('${snapB.id}', '${pName}')">Restore Weights</button>
+              <div style="display:flex; gap: 8px;">
+                 <button class="vc-restore-btn" onclick="restoreVcWeights('${snapB.id}', '${pName}')">Restore</button>
+                 <button class="vc-delete-btn" onclick="deleteVcSnapshot('${snapB.id}', '${pName}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer;">Delete</button>
+              </div>
             </div>
             
             <div style="display:flex; gap: 15px; margin-top: 10px;">
