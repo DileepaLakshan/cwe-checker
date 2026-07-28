@@ -1,0 +1,45 @@
+.tabs-bar {
+  height: 36px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 100%;
+  border-right: 1px solid var(--border-color);
+  cursor: pointer;
+  background: var(--bg-primary);
+}
+
+.tab-item.active {
+  background: var(--bg-primary);
+  border-bottom: 2px solid var(--accent-purple);
+}
+
+.tab-title {
+  font-size: 13px;
+  margin-right: 8px;
+}
+
+.tab-close {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.tab-close:hover {
+  opacity: 1;
+}
+
+.tab-dirty-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--accent-yellow);
+  border-radius: 50%;
+  margin-left: 4px;
+}

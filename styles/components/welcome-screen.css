@@ -1,0 +1,79 @@
+.welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+}
+
+.gradient-text {
+  font-size: 32px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-subtitle {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+#scanBtn {
+  margin-top: 24px;
+  background: linear-gradient(135deg, hsl(var(--accent-neon)), hsl(var(--accent-purple)));
+  border: none;
+  color: #000;
+  font-weight: 700;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px hsl(var(--accent-neon) / 0.3);
+}
+
+#scanBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px hsl(var(--accent-neon) / 0.5);
+}
+
+.welcome-sections {
+  display: flex;
+  gap: 48px;
+  margin-top: 32px;
+  text-align: left;
+}
+
+.welcome-section h3 {
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+
+.welcome-action-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.keyboard-shortcuts {
+  margin-top: 32px;
+  color: var(--text-muted);
+}
+
+.shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  width: 280px;
+  margin: 6px 0;
+}
