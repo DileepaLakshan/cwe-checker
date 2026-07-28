@@ -8,6 +8,7 @@ import { TabsBar } from './tabs-bar/tabs-bar.js';
 import { WelcomeScreen } from './welcome-screen/welcome-screen.js';
 import { StatusBar } from './status-bar/status-bar.js';
 import { ResultsPanelLegacy } from './results-panel/results-panel-legacy.js';
+import { HistoryModal } from './history-modal/history-modal.js';
 
 export function initComponents() {
   ActivityBar.init('activity-bar');
@@ -17,4 +18,5 @@ export function initComponents() {
   WelcomeScreen.init('welcome-screen-component');
   StatusBar.init('status-bar-component');
   ResultsPanelLegacy.init('results-panel-legacy');
+  HistoryModal.init();
 }
