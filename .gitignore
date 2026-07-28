@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# Local binary assets that are too large for GitHub
+bin/win/*.exe
