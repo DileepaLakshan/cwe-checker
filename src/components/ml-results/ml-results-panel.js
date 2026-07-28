@@ -149,7 +149,7 @@ export class MlResultsPanel {
           <!-- TQI Root Node -->
           <div class="ml-output-node tqi-node">
             <div class="ml-score">${tqiScore}</div>
-            <div class="ml-model-name">TQI</div>
+            <div class="ml-model-name">TQI (0-100 Scale)</div>
           </div>
           
           <div class="ml-tqi-edges">
@@ -673,9 +673,9 @@ export class MlResultsPanel {
       
       svgGraph.innerHTML = ''; // clear
 
-      // Draw Y axis lines and labels (0 to 10)
-      for(let i=0; i<=10; i+=2) {
-        const y = padding + usableH - ((i / 10) * usableH);
+      // Draw Y axis lines and labels (0 to 100)
+      for(let i=0; i<=100; i+=20) {
+        const y = padding + usableH - ((i / 100) * usableH);
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("x1", padding - 5); line.setAttribute("y1", y);
         line.setAttribute("x2", w); line.setAttribute("y2", y);
@@ -696,7 +696,7 @@ export class MlResultsPanel {
       snapshots.forEach((snap, idx) => {
         const x = snapshots.length === 1 ? (w/2) : padding + (idx / (snapshots.length - 1)) * usableW;
         const tqi = parseFloat(snap.tqiScore) || 0;
-        const y = padding + usableH - ((tqi / 10) * usableH);
+        const y = padding + usableH - ((Math.min(100, Math.max(0, tqi)) / 100) * usableH);
         points.push({x, y, snap, tqi});
       });
 
@@ -755,7 +755,7 @@ export class MlResultsPanel {
           <div class="vc-diff-header">
             <div>
                <strong>${baseSnap.versionName}</strong> (Baseline)
-               <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(baseSnap.timestamp).toLocaleString()} | Initial TQI: ${baseSnap.tqiScore}</div>
+               <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(baseSnap.timestamp).toLocaleString()} | Initial TQI: ${baseSnap.tqiScore} / 100</div>
             </div>
             <div style="display:flex; gap: 8px;">
                <button class="vc-restore-btn" onclick="restoreVcWeights('${baseSnap.id}', '${pName}')">Restore</button>
@@ -811,7 +811,7 @@ export class MlResultsPanel {
                  <strong>${snapB.versionName}</strong>
                  <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(snapB.timestamp).toLocaleString()}</div>
                  <div style="margin-top: 6px; font-weight: 500;">
-                   TQI: ${snapB.tqiScore} <span style="color: ${tqiColor}">(${tqiSign}${tqiDelta.toFixed(4)})</span>
+                   TQI: ${snapB.tqiScore} / 100 <span style="color: ${tqiColor}">(${tqiSign}${tqiDelta.toFixed(4)})</span>
                  </div>
               </div>
               <div style="display:flex; gap: 8px;">
