@@ -8,6 +8,10 @@ contextBridge.exposeInMainWorld('api', {
   createFile: (filePath) => ipcRenderer.invoke('fs:createFile', filePath),
   createDirectory: (dirPath) => ipcRenderer.invoke('fs:createDirectory', dirPath),
   deletePath: (targetPath) => ipcRenderer.invoke('fs:deletePath', targetPath),
+  selectDataset: () => ipcRenderer.invoke('dialog:openDataset'),
+  startRetraining: (datasetPath) => ipcRenderer.invoke('ml:startRetraining', datasetPath),
+  applyStagedModels: () => ipcRenderer.invoke('ml:applyStagedModels'),
+  onRetrainProgress: (callback) => ipcRenderer.on('ml:retrainProgress', (event, data) => callback(data))
 });
 
 

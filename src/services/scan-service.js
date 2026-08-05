@@ -43,6 +43,9 @@ export async function performScan() {
       })
     ]);
 
+    console.log(`[scan-service] SAST Scanner Results: ${sastResults?.results?.length || 0} items`, sastResults);
+    console.log(`[scan-service] SCA Scanner Results: ${scaResults?.Results?.length || 0} targets`, scaResults);
+
     // Process SAST results
     const sastIssuesArray = sastResults?.results || [];
     const sastCweIssuesArray = sastIssuesArray.flatMap(hit => {

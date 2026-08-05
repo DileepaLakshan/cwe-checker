@@ -92,3 +92,7 @@ typings/
 out/
 bin/win/opengrep_windows_x86.exe
 bin/win/trivy.exe
+
+pipline
+test_cwe_matrix.csv
+ml_models_staging

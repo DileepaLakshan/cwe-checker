@@ -45,6 +45,9 @@ async function handleScan() {
       window.scannerAPI.runSCA(projectFolder)
     ]);
 
+    console.log(`[scan-events] SAST Scanner Results: ${sastResults?.results?.length || 0} items`, sastResults);
+    console.log(`[scan-events] SCA Scanner Results: ${scaResults?.Results?.length || 0} targets`, scaResults);
+
     // 4. Parse and display SAST results
     displaySASTResults(sastContainer, sastResults);
 

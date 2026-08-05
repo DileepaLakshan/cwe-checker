@@ -32,6 +32,13 @@ export class ActivityBar {
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
           </button>
+          <button class="activity-btn" title="Model Management" id="model-management-btn" data-action="models">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </button>
         </div>
         <div class="bottom-icons">
           <button class="activity-btn" title="Theme" data-action="theme">
@@ -48,8 +55,26 @@ export class ActivityBar {
     container.querySelectorAll('.activity-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.action;
-        // Handle different actions
-        console.log(`Activity: ${action}`);
+        
+        // Update active state
+        container.querySelectorAll('.activity-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Switch view
+        if (action === 'explorer') {
+           document.getElementById('editor-container').style.display = 'flex';
+           document.getElementById('welcome-screen-component').style.display = 'flex';
+           document.getElementById('model-management-component').style.display = 'none';
+        } else if (action === 'models') {
+           document.getElementById('editor-container').style.display = 'flex';
+           document.getElementById('code-editor-panel').style.display = 'none';
+           document.getElementById('welcome-screen-component').style.display = 'none';
+           document.getElementById('scan-results-component').style.display = 'none';
+           document.getElementById('ml-results-component').style.display = 'none';
+           document.getElementById('results-panel-legacy').style.display = 'none';
+           
+           document.getElementById('model-management-component').style.display = 'block';
+        }
       });
     });
   }
