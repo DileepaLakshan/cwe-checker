@@ -318,10 +318,17 @@
   fill: #3b82f6;
   fill-opacity: 0.75;
 }
+.scatter-point.error-point {
+  fill: #8b5cf6;
+}
 .scatter-diagonal {
   stroke: #cbd5e1;
   stroke-width: 1;
   stroke-dasharray: 4;
+}
+.histogram-bar {
+  fill: #3b82f6;
+  fill-opacity: 0.75;
 }
 .scatter-axis-label {
   font-size: 9px;

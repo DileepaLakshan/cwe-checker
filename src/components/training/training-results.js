@@ -63,6 +63,81 @@ function scatterSvg(samples) {
   `;
 }
 
+function histogramSvg(values, xLabel) {
+  if (!values || values.length === 0) return '<div class="training-no-samples">No score data to plot.</div>';
+
+  const w = 260;
+  const h = 200;
+  const pad = 28;
+  const min = Math.min(...values);
+  const max = Math.max(...values, min + 0.0001);
+  const binCount = Math.min(16, Math.max(5, Math.round(Math.sqrt(values.length))));
+  const binWidth = (max - min) / binCount;
+  const bins = new Array(binCount).fill(0);
+  values.forEach((v) => {
+    let idx = Math.floor((v - min) / binWidth);
+    if (idx >= binCount) idx = binCount - 1;
+    if (idx < 0) idx = 0;
+    bins[idx]++;
+  });
+  const maxCount = Math.max(...bins, 1);
+  const plotW = w - pad * 2;
+  const plotH = h - pad * 2;
+  const barGap = 1;
+  const barWidth = plotW / binCount - barGap;
+
+  const bars = bins
+    .map((count, i) => {
+      const barH = (count / maxCount) * plotH;
+      const x = pad + i * (plotW / binCount);
+      const y = h - pad - barH;
+      return `<rect x="${x}" y="${y}" width="${Math.max(barWidth, 1)}" height="${barH}" class="histogram-bar" />`;
+    })
+    .join('');
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" class="training-scatter" role="img" aria-label="Distribution of ${xLabel} across ${values.length} projects">
+      ${bars}
+      <text x="${w / 2}" y="${h - 6}" class="scatter-axis-label" text-anchor="middle">${xLabel} (${min.toFixed(2)}-${max.toFixed(2)})</text>
+      <text x="10" y="${h / 2}" class="scatter-axis-label" text-anchor="middle" transform="rotate(-90 10 ${h / 2})">Frequency</text>
+    </svg>
+  `;
+}
+
+function errorScatterSvg(samples) {
+  if (!samples || samples.length === 0) return '<div class="training-no-samples">No held-out samples to plot.</div>';
+
+  const w = 260;
+  const h = 200;
+  const pad = 28;
+  const predicted = samples.map((s) => s.predicted);
+  const errors = samples.map((s) => s.actual - s.predicted);
+
+  const xMin = Math.min(...predicted);
+  const xMax = Math.max(...predicted, xMin + 0.0001);
+  const errMax = Math.max(...errors.map((e) => Math.abs(e)), 0.0001);
+
+  const scaleX = (v) => pad + ((v - xMin) / (xMax - xMin)) * (w - pad * 2);
+  const zeroY = h / 2;
+  const scaleY = (err) => zeroY - (err / errMax) * (zeroY - pad / 2);
+
+  const points = samples
+    .map((s) => {
+      const err = s.actual - s.predicted;
+      return `<circle cx="${scaleX(s.predicted)}" cy="${scaleY(err)}" r="3.5" class="scatter-point error-point" />`;
+    })
+    .join('');
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" class="training-scatter" role="img" aria-label="Prediction error versus predicted value for held-out projects">
+      <line x1="${pad}" y1="${zeroY}" x2="${w - pad}" y2="${zeroY}" class="scatter-diagonal" />
+      ${points}
+      <text x="${w / 2}" y="${h - 6}" class="scatter-axis-label" text-anchor="middle">Predicted</text>
+      <text x="10" y="${h / 2}" class="scatter-axis-label" text-anchor="middle" transform="rotate(-90 10 ${h / 2})">Prediction Error</text>
+    </svg>
+  `;
+}
+
 export class TrainingResults {
   static runId = null;
   static results = {};
@@ -130,6 +205,17 @@ export class TrainingResults {
                 `
                   )
                   .join('')}
+              </div>
+            </div>
+
+            <div class="training-result-body">
+              <div class="training-scatter-wrapper">
+                <div class="training-scatter-title">Distribution of ${characteristic} Scores</div>
+                ${histogramSvg(result.yDistribution, 'Score')}
+              </div>
+              <div class="training-scatter-wrapper">
+                <div class="training-scatter-title">Predicted Y vs Prediction Error</div>
+                ${errorScatterSvg(result.samples)}
               </div>
             </div>
 
