@@ -6,5 +6,6 @@
 @import './components/scan-results.css';
 @import './components/status-bar.css';
 @import './components/tabs.css';
+@import './components/training.css';
 @import './base/reset.css';
 @import './base/variables.css';

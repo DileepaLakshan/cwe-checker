@@ -27,11 +27,13 @@ const createWindow = () => {
   }
 
   mainWindow.webContents.openDevTools();
+
+  return mainWindow;
 };
 
 app.whenReady().then(() => {
-  registerAllIPCHandlers();
-  createWindow();
+  const mainWindow = createWindow();
+  registerAllIPCHandlers(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

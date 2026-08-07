@@ -92,3 +92,5 @@ typings/
 out/
 bin/win/opengrep_windows_x86.exe
 bin/win/trivy.exe
+pipline/
+ml_models/

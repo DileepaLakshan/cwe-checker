@@ -1,0 +1,413 @@
+/* Train Model modal */
+.training-modal-content {
+  max-width: 720px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.training-intro {
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.training-intro code {
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+
+.training-dataset-picker {
+  margin-bottom: 22px;
+}
+.training-dataset-preview {
+  margin-top: 10px;
+  font-size: 13px;
+}
+.training-dataset-ok {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+.training-dataset-repos {
+  margin-top: 4px;
+  color: #047857;
+  font-size: 12px;
+}
+.training-dataset-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+.training-dataset-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.training-dataset-warning code {
+  background: rgba(146,64,14,0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.training-characteristics h4 {
+  font-size: 14px;
+  color: #334155;
+  margin: 0 0 10px;
+}
+.training-characteristics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.training-characteristic-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.training-characteristic-row:hover {
+  background: #f8fafc;
+}
+.training-badge {
+  margin-left: auto;
+  font-size: 11px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.training-badge-new {
+  color: #b45309;
+  background: #fffbeb;
+}
+.training-badge-error {
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.training-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 16px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.training-error-banner.hidden {
+  display: none;
+}
+
+/* Pipeline status stepper */
+.pipeline-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.pipeline-stage {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.pipeline-stage-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+}
+.pipeline-stage-icon {
+  width: 18px;
+  text-align: center;
+  color: #94a3b8;
+}
+.pipeline-stage.running .pipeline-stage-icon {
+  color: #2563eb;
+  animation: pipeline-pulse 1s infinite ease-in-out;
+}
+.pipeline-stage.done .pipeline-stage-icon {
+  color: #16a34a;
+}
+.pipeline-stage.error .pipeline-stage-icon {
+  color: #dc2626;
+}
+@keyframes pipeline-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.pipeline-substeps {
+  margin-top: 8px;
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pipeline-substep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+.pipeline-substep-icon {
+  width: 14px;
+  text-align: center;
+}
+.pipeline-substep.running .pipeline-substep-icon { color: #2563eb; }
+.pipeline-substep.done .pipeline-substep-icon { color: #16a34a; }
+.pipeline-substep.error .pipeline-substep-icon { color: #dc2626; }
+.pipeline-substep-status {
+  margin-left: auto;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.pipeline-log-wrapper {
+  margin-bottom: 18px;
+}
+.pipeline-log-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.pipeline-log {
+  background: #0f172a;
+  color: #cbd5e1;
+  font-family: 'Fira Code', monospace;
+  font-size: 11.5px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* Results comparison cards */
+.training-results-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.training-result-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+.training-result-card.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.training-result-card.applied {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+.training-result-card.discarded {
+  opacity: 0.6;
+}
+.training-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.training-result-header h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #1e293b;
+}
+.training-error-message {
+  font-size: 13px;
+  color: #991b1b;
+  margin: 0;
+}
+
+.training-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.metric-bar-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 48px 1fr 48px;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+}
+.metric-bar-label {
+  color: #64748b;
+  font-weight: 500;
+}
+.metric-bar-track {
+  height: 8px;
+  background: #eff6ff;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.metric-bar-track.baseline {
+  background: #f1f5f9;
+}
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+.metric-bar-fill.candidate {
+  background: #3b82f6;
+}
+.metric-bar-fill.production {
+  background: #94a3b8;
+}
+.metric-bar-fill.metric-better {
+  background: #16a34a;
+}
+.metric-bar-fill.metric-worse {
+  background: #dc2626;
+}
+.metric-bar-value {
+  text-align: right;
+  color: #1e293b;
+  font-family: 'Fira Code', monospace;
+}
+.metric-bar-value.baseline {
+  color: #94a3b8;
+}
+
+.training-result-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.training-scatter-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.training-scatter {
+  width: 100%;
+  height: auto;
+}
+.scatter-point {
+  fill: #3b82f6;
+  fill-opacity: 0.75;
+}
+.scatter-diagonal {
+  stroke: #cbd5e1;
+  stroke-width: 1;
+  stroke-dasharray: 4;
+}
+.scatter-axis-label {
+  font-size: 9px;
+  fill: #94a3b8;
+}
+.training-no-samples {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.importance-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.importance-label {
+  color: #64748b;
+  font-family: 'Fira Code', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.importance-track {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.importance-fill {
+  height: 100%;
+  background: #8b5cf6;
+}
+
+.training-result-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Tabs inside the History & Compare modal */
+.vc-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 4px 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+}
+.vc-tab-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+/* Model Versions (inside History & Compare modal) */
+.model-versions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.model-version-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.model-version-row.production {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+.model-version-info {
+  flex: 1;
+}
+.model-version-name {
+  font-weight: 600;
+  color: #1e293b;
+}
+.model-version-meta {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}

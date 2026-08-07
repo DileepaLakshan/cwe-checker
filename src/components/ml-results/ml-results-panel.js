@@ -1,5 +1,6 @@
 import { getDOM } from '../../utils/dom-references.js';
 import { calculateAIWeights } from '../../services/ai-weight-service.js';
+import { TrainingPanel } from '../training/training-panel.js';
 
 export class MlResultsPanel {
   static mlWeights = {};
@@ -105,6 +106,7 @@ export class MlResultsPanel {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <h2>ML INTEGRATION</h2>
+          <button id="train-model-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #2563eb;">Train Model</button>
           <button id="save-snapshot-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #10b981;">Save Snapshot</button>
           <button id="ai-panel-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #8b5cf6;">AI Weights</button>
           <button id="adjust-weights-btn" class="adjust-weights-btn" style="margin-left: 0;">Manual Weights</button>
@@ -272,7 +274,9 @@ export class MlResultsPanel {
     `;
 
     mlResultsPanel.innerHTML = html;
-    
+
+    TrainingPanel.wireEntryButton();
+
     // Inject initial math calculation
     const mathBreakdownNode = mlResultsPanel.querySelector('#tqi-math-breakdown');
     if (mathBreakdownNode) {
