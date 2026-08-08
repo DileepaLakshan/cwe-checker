@@ -77,6 +77,99 @@ export class MlResultsPanel {
     return { finalTqi, mathString };
   }
 
+  // For each CWE currently affecting a model score, simulate fully remediating it
+  // (zeroing its value everywhere it appears) and measure the resulting TQI gain.
+  static computeCweImpact(models, predictions) {
+    const { finalTqi: baseTqiStr } = MlResultsPanel.calculateTqi(models, predictions);
+    const baseTqi = parseFloat(baseTqiStr);
+
+    const cweSet = new Set();
+    for (const m of models) {
+      const modelData = predictions[m];
+      if (modelData.error || !MlResultsPanel.cweWeights[m]) continue;
+      for (const i of (modelData.inputs || [])) {
+        if (i.value !== 0 && MlResultsPanel.cweWeights[m][i.cwe] !== undefined) {
+          cweSet.add(i.cwe);
+        }
+      }
+    }
+
+    const impacts = [];
+    for (const cwe of cweSet) {
+      const simPredictions = {};
+      for (const m of models) {
+        const modelData = predictions[m];
+        if (modelData.error) { simPredictions[m] = modelData; continue; }
+        simPredictions[m] = {
+          ...modelData,
+          inputs: (modelData.inputs || []).map(i => i.cwe === cwe ? { ...i, value: 0 } : i)
+        };
+      }
+
+      const { finalTqi: simTqiStr } = MlResultsPanel.calculateTqi(models, simPredictions);
+      const delta = parseFloat(simTqiStr) - baseTqi;
+
+      const affectedModels = models.filter(m =>
+        !predictions[m].error && (predictions[m].inputs || []).some(i => i.cwe === cwe && i.value !== 0)
+      );
+
+      impacts.push({ cwe, delta, affectedModels });
+    }
+
+    impacts.sort((a, b) => b.delta - a.delta);
+    return { impacts, baseTqi };
+  }
+
+  static renderCweImpactChart(impacts) {
+    const positive = impacts.filter(i => i.delta > 0.0001).slice(0, 10);
+
+    if (positive.length === 0) {
+      return `
+        <div class="cwe-priority-section" id="cwe-priority-section">
+          <div class="cwe-priority-header">
+            <h3>🎯 CWE Fix Priority</h3>
+            <p>No single CWE is currently dragging TQI down enough to rank — nice work.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    const maxDelta = positive[0].delta;
+
+    const rows = positive.map((item, idx) => {
+      const pct = maxDelta > 0 ? (item.delta / maxDelta) * 100 : 0;
+      const rank = idx + 1;
+      const badges = item.affectedModels.map(m => `<span class="cwe-priority-badge">${m}</span>`).join('');
+      return `
+        <div class="cwe-priority-row">
+          <div class="cwe-priority-rank">#${rank}</div>
+          <div class="cwe-priority-main">
+            <div class="cwe-priority-label">
+              <span class="cwe-priority-cwe">${item.cwe}</span>
+              <span class="cwe-priority-value">+${item.delta.toFixed(2)} TQI</span>
+            </div>
+            <div class="cwe-priority-bar-track">
+              <div class="cwe-priority-bar-fill rank-${Math.min(rank, 5)}" style="width: ${pct.toFixed(1)}%;"></div>
+            </div>
+            <div class="cwe-priority-badges">${badges}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="cwe-priority-section" id="cwe-priority-section">
+        <div class="cwe-priority-header">
+          <h3>🎯 CWE Fix Priority — Fastest TQI Gains</h3>
+          <p>Ranked by how much TQI would improve if that CWE were fully remediated first.</p>
+        </div>
+        <div class="cwe-priority-list">
+          ${rows}
+        </div>
+      </div>
+    `;
+  }
+
   static render(mlData) {
     const { mlResultsPanel } = getDOM();
     if (!mlResultsPanel) return;
@@ -230,6 +323,8 @@ export class MlResultsPanel {
       `;
     }
 
+    const { impacts: cweImpacts } = MlResultsPanel.computeCweImpact(models, predictions);
+
     html += `
             </div>
           </div>
@@ -239,7 +334,9 @@ export class MlResultsPanel {
           </div>
 
         </div>
-        
+
+        ${MlResultsPanel.renderCweImpactChart(cweImpacts)}
+
         <div class="ml-scanner-footer">
           <div class="ml-scanner-box">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -282,7 +379,15 @@ export class MlResultsPanel {
     if (mathBreakdownNode) {
       mathBreakdownNode.innerHTML = `<b>Calculation:</b> ${mathString} = <b style="color: #28a745;">${tqiScore}</b>`;
     }
-    
+
+    // Keeps the "CWE Fix Priority" chart in sync whenever a weight/penalty edit changes TQI
+    const refreshCweImpactChart = () => {
+      const section = mlResultsPanel.querySelector('#cwe-priority-section');
+      if (!section) return;
+      const { impacts } = MlResultsPanel.computeCweImpact(models, predictions);
+      section.outerHTML = MlResultsPanel.renderCweImpactChart(impacts);
+    };
+
     // Add interactivity
     const clickableNodes = mlResultsPanel.querySelectorAll('.ml-node-clickable');
     clickableNodes.forEach(node => {
@@ -410,6 +515,8 @@ export class MlResultsPanel {
             const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
             if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
 
+            refreshCweImpactChart();
+
             statusEl.textContent = "AI Analysis Complete!";
             statusEl.style.color = "#16a34a"; // green
           }
@@ -444,6 +551,8 @@ export class MlResultsPanel {
         
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
         if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
+
+        refreshCweImpactChart();
       });
     });
 
@@ -457,6 +566,8 @@ export class MlResultsPanel {
         if (tqiScoreNode) tqiScoreNode.textContent = finalTqi;
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
         if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
+
+        refreshCweImpactChart();
       });
     }
 
@@ -487,6 +598,8 @@ export class MlResultsPanel {
         
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
         if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
+
+        refreshCweImpactChart();
       });
     });
 
