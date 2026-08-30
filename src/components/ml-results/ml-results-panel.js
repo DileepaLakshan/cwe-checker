@@ -1,6 +1,7 @@
 import { getDOM } from '../../utils/dom-references.js';
 import { calculateAIWeights } from '../../services/ai-weight-service.js';
 import { TrainingPanel } from '../training/training-panel.js';
+import { exportTqiReport } from '../../services/export-service.js';
 
 // Colorblind-safe categorical palette, shared by the pie and sensitivity charts.
 const CB_COLORS = ['#00429d', '#4771b2', '#a5d5d8', '#ffbcaf', '#cf3759', '#93003a'];
@@ -526,6 +527,7 @@ export class MlResultsPanel {
           <button id="train-model-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #2563eb;">Train Model</button>
           <button id="save-snapshot-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #10b981;">Save Snapshot</button>
           <button id="ai-panel-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #8b5cf6;">AI Weights</button>
+          <button id="export-report-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #f59e0b;">Export Report</button>
           <button id="adjust-weights-btn" class="adjust-weights-btn" style="margin-left: 0;">Manual Weights</button>
         </div>
         
@@ -695,6 +697,22 @@ export class MlResultsPanel {
     mlResultsPanel.innerHTML = html;
 
     TrainingPanel.wireEntryButton();
+
+    // Export Report
+    const exportReportBtn = mlResultsPanel.querySelector('#export-report-btn');
+    if (exportReportBtn) {
+      exportReportBtn.addEventListener('click', async () => {
+        const originalText = exportReportBtn.textContent;
+        exportReportBtn.disabled = true;
+        exportReportBtn.textContent = 'Exporting...';
+        try {
+          await exportTqiReport(models, predictions);
+        } finally {
+          exportReportBtn.disabled = false;
+          exportReportBtn.textContent = originalText;
+        }
+      });
+    }
 
     // Inject initial math calculation
     const mathBreakdownNode = mlResultsPanel.querySelector('#tqi-math-breakdown');

@@ -3,6 +3,7 @@
  */
 import { closeTab, openFileInEditor } from '../../services/editor-service.js';
 import { getCurrentWorkspace } from '../../state/ide-state.js';
+import { exportScanFindingsCsv } from '../../services/export-service.js';
 
 export class ScanResultsPanel {
   static init(containerId) {
@@ -18,7 +19,10 @@ export class ScanResultsPanel {
       <div class="scan-results-panel" id="scan-results-panel" style="display: none;">
         <div class="results-header">
           <h2>Scan Results</h2>
-          <button id="btn-close-results" class="btn-secondary">Close Results</button>
+          <div class="results-header-actions">
+            <button id="btn-export-csv" class="btn-secondary">Export CSV</button>
+            <button id="btn-close-results" class="btn-secondary">Close Results</button>
+          </div>
         </div>
         
         <div id="scan-loading-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px;">
@@ -51,6 +55,10 @@ export class ScanResultsPanel {
   static attachEventListeners() {
     document.getElementById('btn-close-results')?.addEventListener('click', (e) => {
       closeTab('__SCAN_RESULTS__', e, true);
+    });
+
+    document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+      exportScanFindingsCsv();
     });
   }
 

@@ -19,6 +19,11 @@ contextBridge.exposeInMainWorld('scannerAPI', {
   runMLPredict: (featuresData) => ipcRenderer.invoke('scan:ml-predict', featuresData)
 });
 
+contextBridge.exposeInMainWorld('exportAPI', {
+  exportCSV: (csvContent, defaultFileName) => ipcRenderer.invoke('export:csv', csvContent, defaultFileName),
+  exportPDF: (htmlContent, defaultFileName) => ipcRenderer.invoke('export:pdf', htmlContent, defaultFileName),
+});
+
 contextBridge.exposeInMainWorld('trainingAPI', {
   selectDataset: () => ipcRenderer.invoke('training:selectDataset'),
   describeDataset: (datasetPath) => ipcRenderer.invoke('training:describeDataset', { datasetPath }),

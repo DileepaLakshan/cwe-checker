@@ -17,6 +17,11 @@
   padding-bottom: 10px;
 }
 
+.results-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .results-summary {
   margin-bottom: 30px;
   display: flex;

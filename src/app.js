@@ -31,6 +31,13 @@ export function initApp() {
       onProgress: () => () => {},
     };
   }
+  if (!window.exportAPI) {
+    console.log('app.js: window.exportAPI missing (not running under Electron preload) - export will be disabled');
+    window.exportAPI = {
+      exportCSV: async () => { throw new Error('Export is only available inside the desktop app.'); },
+      exportPDF: async () => { throw new Error('Export is only available inside the desktop app.'); },
+    };
+  }
 
   // Set up event listeners
   setupEventListeners();
