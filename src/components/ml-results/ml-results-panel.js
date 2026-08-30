@@ -2,10 +2,124 @@ import { getDOM } from '../../utils/dom-references.js';
 import { calculateAIWeights } from '../../services/ai-weight-service.js';
 import { TrainingPanel } from '../training/training-panel.js';
 
+// Colorblind-safe categorical palette, shared by the pie and sensitivity charts.
+const CB_COLORS = ['#00429d', '#4771b2', '#a5d5d8', '#ffbcaf', '#cf3759', '#93003a'];
+
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeArc(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+  return `M ${cx} ${cy} L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`;
+}
+
+function pieSvg(slices) {
+  const total = slices.reduce((s, x) => s + x.value, 0);
+  if (total <= 0) return '<div class="training-no-samples">No contribution data to plot.</div>';
+
+  const cx = 110, cy = 110, r = 95;
+  let paths;
+
+  if (slices.length === 1) {
+    paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${CB_COLORS[0]}" class="pie-slice"><title>${slices[0].name}: 100%</title></circle>`;
+  } else {
+    let angle = 0;
+    paths = slices.map((s, idx) => {
+      const pct = s.value / total;
+      const sweep = pct * 360;
+      const startAngle = angle;
+      const endAngle = angle + sweep;
+      angle = endAngle;
+      const d = describeArc(cx, cy, r, startAngle, endAngle);
+      return `<path d="${d}" fill="${CB_COLORS[idx % CB_COLORS.length]}" class="pie-slice"><title>${s.name}: ${(pct * 100).toFixed(1)}%</title></path>`;
+    }).join('');
+  }
+
+  const legend = slices.map((s, idx) => {
+    const pct = (s.value / total) * 100;
+    return `
+      <div class="pie-legend-row">
+        <span class="pie-legend-swatch" style="background:${CB_COLORS[idx % CB_COLORS.length]}"></span>
+        <span class="pie-legend-label">${s.name}</span>
+        <span class="pie-legend-pct">${pct.toFixed(1)}%</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="pie-chart-wrapper">
+      <svg viewBox="0 0 220 220" class="pie-svg" role="img" aria-label="Contribution share by CWE">${paths}</svg>
+      <div class="pie-legend">${legend}</div>
+    </div>
+  `;
+}
+
+function sensitivityChartSvg(series, currentTqi, thresholdTqi) {
+  const w = 320, h = 240, padL = 32, padR = 12, padT = 14, padB = 28;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+
+  const xScale = (frac) => padL + frac * plotW;
+  const yScale = (tqi) => padT + plotH - (Math.min(100, Math.max(0, tqi)) / 100) * plotH;
+
+  const yGrid = [0, 25, 50, 75, 100].map((v) => `
+    <line x1="${padL}" y1="${yScale(v).toFixed(1)}" x2="${w - padR}" y2="${yScale(v).toFixed(1)}" class="sens-grid-line" />
+    <text x="${padL - 4}" y="${(yScale(v) + 3).toFixed(1)}" class="mli-axis-label" text-anchor="end">${v}</text>
+  `).join('');
+
+  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => `
+    <text x="${xScale(f).toFixed(1)}" y="${h - padB + 12}" class="mli-axis-label" text-anchor="middle">${Math.round(f * 100)}%</text>
+  `).join('');
+
+  const lines = series.map((s) => {
+    const pointsStr = s.points.map((p) => `${xScale(p.frac).toFixed(1)},${yScale(p.tqi).toFixed(1)}`).join(' ');
+    const current = s.points[s.points.length - 1];
+    const marker = current
+      ? `<circle cx="${xScale(current.frac).toFixed(1)}" cy="${yScale(current.tqi).toFixed(1)}" r="4" fill="${s.color}" stroke="#1e293b" stroke-width="1"><title>${s.name} (current): ${current.tqi.toFixed(2)} TQI</title></circle>`
+      : '';
+    return `<polyline points="${pointsStr}" fill="none" stroke="${s.color}" stroke-width="2" class="sens-line" />${marker}`;
+  }).join('');
+
+  const scoreLine = `<line x1="${padL}" y1="${yScale(currentTqi).toFixed(1)}" x2="${w - padR}" y2="${yScale(currentTqi).toFixed(1)}" class="sens-score-line" />`;
+  const thresholdLine = typeof thresholdTqi === 'number'
+    ? `<line x1="${padL}" y1="${yScale(thresholdTqi).toFixed(1)}" x2="${w - padR}" y2="${yScale(thresholdTqi).toFixed(1)}" class="sens-threshold-line" />`
+    : '';
+
+  const legend = series.map((s) => `
+    <div class="pie-legend-row">
+      <span class="pie-legend-swatch" style="background:${s.color}"></span>
+      <span class="pie-legend-label">${s.name}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="sens-chart-wrapper">
+      <svg viewBox="0 0 ${w} ${h}" class="sens-svg" role="img" aria-label="TQI sensitivity to CWE remediation">
+        ${yGrid}
+        ${xTicks}
+        ${thresholdLine}
+        ${scoreLine}
+        ${lines}
+        <text x="${(padL + plotW / 2).toFixed(1)}" y="${h - 4}" class="mli-axis-label" text-anchor="middle">% of current severity remaining</text>
+        <text x="10" y="${(padT + plotH / 2).toFixed(1)}" class="mli-axis-label" text-anchor="middle" transform="rotate(-90 10 ${(padT + plotH / 2).toFixed(1)})">TQI</text>
+      </svg>
+      <div class="pie-legend sens-legend">${legend}</div>
+    </div>
+  `;
+}
+
 export class MlResultsPanel {
   static mlWeights = {};
   static cweWeights = {};
   static globalTqiPenalty = 0;
+  static activeInsightTab = 'contrib';
+  static activeStrategy = 'fastest';
+  static customBlend = 0.5;
+  static targetTqi = 80;
 
   static getModelScore(modelName, predictions) {
     const modelData = predictions[modelName];
@@ -120,33 +234,195 @@ export class MlResultsPanel {
     return { impacts, baseTqi };
   }
 
-  static renderCweImpactChart(impacts) {
-    const positive = impacts.filter(i => i.delta > 0.0001).slice(0, 10);
+  // For each quality characteristic (model) currently dragging TQI down, simulate that
+  // characteristic scoring perfectly (every CWE it scanned fully remediated) and measure
+  // the resulting TQI gain. Coarser-grained sibling of computeCweImpact — one row per
+  // characteristic (Security, Maintainability, ...) instead of one row per CWE.
+  static computeCharacteristicImpact(models, predictions) {
+    const { finalTqi: baseTqiStr } = MlResultsPanel.calculateTqi(models, predictions);
+    const baseTqi = parseFloat(baseTqiStr);
 
-    if (positive.length === 0) {
-      return `
-        <div class="cwe-priority-section" id="cwe-priority-section">
-          <div class="cwe-priority-header">
-            <h3>🎯 CWE Fix Priority</h3>
-            <p>No single CWE is currently dragging TQI down enough to rank — nice work.</p>
-          </div>
-        </div>
-      `;
+    const impacts = [];
+    for (const m of models) {
+      const modelData = predictions[m];
+      if (modelData.error) continue;
+      if (!(modelData.inputs || []).some(i => i.value !== 0)) continue;
+
+      const simPredictions = {
+        ...predictions,
+        [m]: { ...modelData, inputs: (modelData.inputs || []).map(i => ({ ...i, value: 0 })) }
+      };
+      const { finalTqi: simTqiStr } = MlResultsPanel.calculateTqi(models, simPredictions);
+      const delta = parseFloat(simTqiStr) - baseTqi;
+
+      impacts.push({ name: m, delta });
     }
 
-    const maxDelta = positive[0].delta;
+    impacts.sort((a, b) => b.delta - a.delta);
+    return { impacts, baseTqi };
+  }
 
-    const rows = positive.map((item, idx) => {
-      const pct = maxDelta > 0 ? (item.delta / maxDelta) * 100 : 0;
+  // Resulting TQI as an entire quality characteristic's scanned CWEs are scaled from
+  // their current values (frac=1) down to fully remediated (frac=0) together.
+  static computeCharacteristicSensitivityCurve(models, predictions, modelName, steps = 6) {
+    const points = [];
+    const modelData = predictions[modelName];
+    for (let s = 0; s < steps; s++) {
+      const frac = s / (steps - 1);
+      const simPredictions = {
+        ...predictions,
+        [modelName]: { ...modelData, inputs: (modelData.inputs || []).map(i => ({ ...i, value: i.value * frac })) }
+      };
+      const { finalTqi } = MlResultsPanel.calculateTqi(models, simPredictions);
+      points.push({ frac, tqi: parseFloat(finalTqi) });
+    }
+    return points;
+  }
+
+  // Raw scanned severity summed across every model a CWE appears in — a rough
+  // "how much code/how many instances need touching" proxy for remediation effort.
+  static computeCweEffort(models, predictions, cwe) {
+    let total = 0;
+    for (const m of models) {
+      const modelData = predictions[m];
+      if (modelData.error) continue;
+      for (const i of (modelData.inputs || [])) {
+        if (i.cwe === cwe) total += i.value;
+      }
+    }
+    return total;
+  }
+
+  // Greedy full remediation plan: repeatedly fix whichever remaining CWE gives the
+  // largest marginal TQI gain right now. Unlike the independent per-CWE deltas in
+  // computeCweImpact, this captures diminishing returns when two CWEs share a
+  // characteristic model, since charScore decays exponentially in the summed input.
+  static computeGreedyRemediationOrder(models, predictions) {
+    let working = {};
+    for (const m of models) {
+      const modelData = predictions[m];
+      working[m] = modelData.error ? modelData : { ...modelData, inputs: (modelData.inputs || []).map(i => ({ ...i })) };
+    }
+
+    const remaining = new Set();
+    for (const m of models) {
+      if (working[m].error || !MlResultsPanel.cweWeights[m]) continue;
+      for (const i of working[m].inputs || []) {
+        if (i.value !== 0 && MlResultsPanel.cweWeights[m][i.cwe] !== undefined) remaining.add(i.cwe);
+      }
+    }
+
+    const order = [];
+    let currentTqi = parseFloat(MlResultsPanel.calculateTqi(models, working).finalTqi);
+
+    while (remaining.size > 0) {
+      let best = null;
+      for (const cwe of remaining) {
+        const sim = {};
+        for (const m of models) {
+          sim[m] = working[m].error ? working[m] : { ...working[m], inputs: working[m].inputs.map(i => i.cwe === cwe ? { ...i, value: 0 } : i) };
+        }
+        const simTqi = parseFloat(MlResultsPanel.calculateTqi(models, sim).finalTqi);
+        const delta = simTqi - currentTqi;
+        if (!best || delta > best.delta) best = { cwe, delta, simTqi, sim };
+      }
+      order.push({ cwe: best.cwe, delta: best.delta });
+      working = best.sim;
+      currentTqi = best.simTqi;
+      remaining.delete(best.cwe);
+    }
+
+    return order;
+  }
+
+  // Reorders (and annotates) the impact list according to the selected remediation strategy.
+  static rankByStrategy(impacts, models, predictions, strategy, customBlend) {
+    const affectedByCwe = {};
+    impacts.forEach(i => { affectedByCwe[i.cwe] = i.affectedModels; });
+
+    if (strategy === 'lowest') {
+      const order = MlResultsPanel.computeGreedyRemediationOrder(models, predictions);
+      return order.map(o => ({ cwe: o.cwe, delta: o.delta, affectedModels: affectedByCwe[o.cwe] || [] }));
+    }
+
+    const withEffort = impacts.map(i => ({ ...i, effort: MlResultsPanel.computeCweEffort(models, predictions, i.cwe) }));
+
+    if (strategy === 'lowestEffort') {
+      withEffort.forEach(i => { i.roi = i.delta / Math.max(i.effort, 0.0001); });
+      return withEffort.sort((a, b) => b.roi - a.roi);
+    }
+
+    if (strategy === 'custom') {
+      const maxDelta = Math.max(...withEffort.map(i => i.delta), 0.0001);
+      const maxEffort = Math.max(...withEffort.map(i => i.effort), 0.0001);
+      withEffort.forEach(i => {
+        const normDelta = i.delta / maxDelta;
+        const normEffortInv = 1 - i.effort / maxEffort;
+        i.customScore = customBlend * normDelta + (1 - customBlend) * normEffortInv;
+      });
+      return withEffort.sort((a, b) => b.customScore - a.customScore);
+    }
+
+    // 'fastest' (default): biggest independent single-fix win first
+    return withEffort.sort((a, b) => b.delta - a.delta);
+  }
+
+  static renderContributionPie(impacts) {
+    if (impacts.length === 0) {
+      return '<div class="training-no-samples">No quality characteristic currently reduces TQI enough to chart.</div>';
+    }
+    const top = impacts.slice(0, 6);
+    const rest = impacts.slice(6);
+    const slices = top.map(i => ({ name: i.name, value: i.delta }));
+    if (rest.length > 0) {
+      slices.push({ name: `Other (${rest.length})`, value: rest.reduce((s, i) => s + i.delta, 0) });
+    }
+    return pieSvg(slices);
+  }
+
+  static renderSensitivityTab(impacts, models, predictions, baseTqi) {
+    if (impacts.length === 0) {
+      return '<div class="training-no-samples">No quality characteristic currently reduces TQI enough to chart.</div>';
+    }
+    const top = impacts.slice(0, 6);
+    const series = top.map((item, idx) => ({
+      name: item.name,
+      color: CB_COLORS[idx % CB_COLORS.length],
+      points: MlResultsPanel.computeCharacteristicSensitivityCurve(models, predictions, item.name)
+    }));
+    return sensitivityChartSvg(series, baseTqi, MlResultsPanel.targetTqi);
+  }
+
+  static renderImpactsTab(impacts, models, predictions) {
+    if (impacts.length === 0) {
+      return '<div class="training-no-samples">No CWE currently reduces TQI enough to prioritize — nice work.</div>';
+    }
+
+    const strategy = MlResultsPanel.activeStrategy;
+    const ranked = MlResultsPanel.rankByStrategy(impacts, models, predictions, strategy, MlResultsPanel.customBlend);
+    const maxDelta = Math.max(...ranked.map(i => i.delta), 0.0001);
+
+    const blendRowHtml = strategy === 'custom' ? `
+      <div class="mli-blend-row">
+        <span class="mli-blend-end">Effort-efficient</span>
+        <input type="range" id="mli-custom-blend" min="0" max="1" step="0.05" value="${MlResultsPanel.customBlend}">
+        <span class="mli-blend-end">Highest impact</span>
+        <span id="mli-custom-blend-val">${Math.round(MlResultsPanel.customBlend * 100)}%</span>
+      </div>
+    ` : '';
+
+    const rows = ranked.slice(0, 10).map((item, idx) => {
       const rank = idx + 1;
-      const badges = item.affectedModels.map(m => `<span class="cwe-priority-badge">${m}</span>`).join('');
+      const pct = Math.max(2, (item.delta / maxDelta) * 100);
+      const badges = (item.affectedModels || []).map(m => `<span class="cwe-priority-badge">${m}</span>`).join('');
+      const roiTag = typeof item.roi === 'number' ? `<span class="cwe-priority-sub">ROI ${item.roi.toFixed(2)}</span>` : '';
       return `
         <div class="cwe-priority-row">
           <div class="cwe-priority-rank">#${rank}</div>
           <div class="cwe-priority-main">
             <div class="cwe-priority-label">
               <span class="cwe-priority-cwe">${item.cwe}</span>
-              <span class="cwe-priority-value">+${item.delta.toFixed(2)} TQI</span>
+              <span class="cwe-priority-value">+${item.delta.toFixed(2)} TQI ${roiTag}</span>
             </div>
             <div class="cwe-priority-bar-track">
               <div class="cwe-priority-bar-fill rank-${Math.min(rank, 5)}" style="width: ${pct.toFixed(1)}%;"></div>
@@ -158,13 +434,61 @@ export class MlResultsPanel {
     }).join('');
 
     return `
-      <div class="cwe-priority-section" id="cwe-priority-section">
-        <div class="cwe-priority-header">
-          <h3>🎯 CWE Fix Priority — Fastest TQI Gains</h3>
-          <p>Ranked by how much TQI would improve if that CWE were fully remediated first.</p>
+      <div class="mli-strategy-row">
+        <label for="mli-strategy-select">Strategy</label>
+        <select id="mli-strategy-select">
+          <option value="fastest" ${strategy === 'fastest' ? 'selected' : ''}>Fastest — biggest single win</option>
+          <option value="lowest" ${strategy === 'lowest' ? 'selected' : ''}>Lowest Risk — best full remediation order</option>
+          <option value="lowestEffort" ${strategy === 'lowestEffort' ? 'selected' : ''}>Lowest Effort — best ROI</option>
+          <option value="custom" ${strategy === 'custom' ? 'selected' : ''}>Custom Blend</option>
+        </select>
+      </div>
+      ${blendRowHtml}
+      <div class="cwe-priority-list">${rows}</div>
+    `;
+  }
+
+  static renderInsightsSection(models, predictions) {
+    // Impacts tab stays CWE-grained (you remediate individual CWEs). Contributions and
+    // Sensitivity are aggregated to the quality-characteristic level (Security,
+    // Maintainability, ...) since those answer "which characteristic to focus on", not
+    // "which line of code to fix".
+    const { impacts: cweImpacts } = MlResultsPanel.computeCweImpact(models, predictions);
+    const positiveCweImpacts = cweImpacts.filter(i => i.delta > 0.0001);
+
+    const { impacts: charImpacts, baseTqi } = MlResultsPanel.computeCharacteristicImpact(models, predictions);
+    const positiveCharImpacts = charImpacts.filter(i => i.delta > 0.0001);
+
+    const tab = MlResultsPanel.activeInsightTab;
+    const pieHtml = tab === 'contrib' ? MlResultsPanel.renderContributionPie(positiveCharImpacts) : '';
+    const sensitivityHtml = tab === 'sensitivity' ? MlResultsPanel.renderSensitivityTab(positiveCharImpacts, models, predictions, baseTqi) : '';
+    const impactsHtml = tab === 'impacts' ? MlResultsPanel.renderImpactsTab(positiveCweImpacts, models, predictions) : '';
+
+    return `
+      <div class="ml-insights-section" id="ml-insights-section">
+        <div class="ml-insights-header">
+          <h3>🎯 Fix Prioritization</h3>
+          <p>Which quality characteristics and CWEs to address, and in what order, to move TQI the most.</p>
+          <div class="mli-target-row">
+            <label for="mli-target-tqi">Target TQI</label>
+            <input type="number" id="mli-target-tqi" min="0" max="100" step="1" value="${MlResultsPanel.targetTqi}">
+          </div>
         </div>
-        <div class="cwe-priority-list">
-          ${rows}
+        <div class="mli-tablist" role="tablist">
+          <button class="mli-tab ${tab === 'contrib' ? 'active' : ''}" data-tab="contrib" type="button">Contributions</button>
+          <button class="mli-tab ${tab === 'sensitivity' ? 'active' : ''}" data-tab="sensitivity" type="button">Sensitivity</button>
+          <button class="mli-tab ${tab === 'impacts' ? 'active' : ''}" data-tab="impacts" type="button">Impacts</button>
+        </div>
+        <div class="mli-tabpanel ${tab === 'contrib' ? '' : 'hidden'}" data-panel="contrib">
+          <p class="mli-tab-desc">Share of the total fixable TQI gain each quality characteristic (Security, Maintainability, ...) currently accounts for.</p>
+          ${pieHtml}
+        </div>
+        <div class="mli-tabpanel ${tab === 'sensitivity' ? '' : 'hidden'}" data-panel="sensitivity">
+          <p class="mli-tab-desc">How TQI responds as each quality characteristic's remaining severity is reduced from its current value toward zero. Dotted black = current TQI, dashed red = target.</p>
+          ${sensitivityHtml}
+        </div>
+        <div class="mli-tabpanel ${tab === 'impacts' ? '' : 'hidden'}" data-panel="impacts">
+          ${impactsHtml}
         </div>
       </div>
     `;
@@ -323,8 +647,6 @@ export class MlResultsPanel {
       `;
     }
 
-    const { impacts: cweImpacts } = MlResultsPanel.computeCweImpact(models, predictions);
-
     html += `
             </div>
           </div>
@@ -335,7 +657,7 @@ export class MlResultsPanel {
 
         </div>
 
-        ${MlResultsPanel.renderCweImpactChart(cweImpacts)}
+        ${MlResultsPanel.renderInsightsSection(models, predictions)}
 
         <div class="ml-scanner-footer">
           <div class="ml-scanner-box">
@@ -380,13 +702,55 @@ export class MlResultsPanel {
       mathBreakdownNode.innerHTML = `<b>Calculation:</b> ${mathString} = <b style="color: #28a745;">${tqiScore}</b>`;
     }
 
-    // Keeps the "CWE Fix Priority" chart in sync whenever a weight/penalty edit changes TQI
-    const refreshCweImpactChart = () => {
-      const section = mlResultsPanel.querySelector('#cwe-priority-section');
+    // Attaches listeners to the "Fix Prioritization" tabs/strategy/blend/target controls.
+    // Called once after the initial render, and again after every refreshInsightsSection()
+    // replaces the section's markup (outerHTML swaps destroy previously bound listeners).
+    const wireInsightsSection = () => {
+      const section = mlResultsPanel.querySelector('#ml-insights-section');
       if (!section) return;
-      const { impacts } = MlResultsPanel.computeCweImpact(models, predictions);
-      section.outerHTML = MlResultsPanel.renderCweImpactChart(impacts);
+
+      section.querySelectorAll('.mli-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          MlResultsPanel.activeInsightTab = btn.dataset.tab;
+          refreshInsightsSection();
+        });
+      });
+
+      const strategySelect = section.querySelector('#mli-strategy-select');
+      if (strategySelect) {
+        strategySelect.addEventListener('change', (e) => {
+          MlResultsPanel.activeStrategy = e.target.value;
+          refreshInsightsSection();
+        });
+      }
+
+      const blendSlider = section.querySelector('#mli-custom-blend');
+      if (blendSlider) {
+        blendSlider.addEventListener('input', (e) => {
+          MlResultsPanel.customBlend = parseFloat(e.target.value);
+          refreshInsightsSection();
+        });
+      }
+
+      const targetInput = section.querySelector('#mli-target-tqi');
+      if (targetInput) {
+        targetInput.addEventListener('input', (e) => {
+          MlResultsPanel.targetTqi = parseFloat(e.target.value) || 0;
+          refreshInsightsSection();
+        });
+      }
     };
+
+    // Keeps the "Fix Prioritization" panel in sync whenever a weight/penalty edit changes TQI,
+    // and whenever the user switches tabs/strategy/blend/target within the panel itself.
+    const refreshInsightsSection = () => {
+      const section = mlResultsPanel.querySelector('#ml-insights-section');
+      if (!section) return;
+      section.outerHTML = MlResultsPanel.renderInsightsSection(models, predictions);
+      wireInsightsSection();
+    };
+
+    wireInsightsSection();
 
     // Add interactivity
     const clickableNodes = mlResultsPanel.querySelectorAll('.ml-node-clickable');
@@ -515,7 +879,7 @@ export class MlResultsPanel {
             const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
             if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
 
-            refreshCweImpactChart();
+            refreshInsightsSection();
 
             statusEl.textContent = "AI Analysis Complete!";
             statusEl.style.color = "#16a34a"; // green
@@ -552,7 +916,7 @@ export class MlResultsPanel {
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
         if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
 
-        refreshCweImpactChart();
+        refreshInsightsSection();
       });
     });
 
@@ -567,7 +931,7 @@ export class MlResultsPanel {
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
         if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
 
-        refreshCweImpactChart();
+        refreshInsightsSection();
       });
     }
 
@@ -599,7 +963,7 @@ export class MlResultsPanel {
         const tqiBreakdown = mlResultsPanel.querySelector('#tqi-math-breakdown');
         if (tqiBreakdown) tqiBreakdown.innerHTML = `<b>Exp. Calculation:</b> ${mathString} = <b style="color: #28a745;">${finalTqi}</b>`;
 
-        refreshCweImpactChart();
+        refreshInsightsSection();
       });
     });
 
