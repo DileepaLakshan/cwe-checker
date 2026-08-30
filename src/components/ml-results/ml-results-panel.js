@@ -6,6 +6,22 @@ import { exportTqiReport } from '../../services/export-service.js';
 // Colorblind-safe categorical palette, shared by the pie and sensitivity charts.
 const CB_COLORS = ['#00429d', '#4771b2', '#a5d5d8', '#ffbcaf', '#cf3759', '#93003a'];
 
+function toSafeId(str) {
+  return str.replace(/[^a-zA-Z0-9_-]/g, '-');
+}
+
+// Shared geometry for the sensitivity chart, so the slider-drag handlers (which move
+// markers/lines directly via DOM, without re-rendering the SVG) use the exact same
+// coordinate mapping as sensitivityChartSvg below.
+const SENS_CHART = { w: 320, h: 240, padL: 32, padR: 12, padT: 14, padB: 28 };
+function sensXScale(frac) {
+  return SENS_CHART.padL + frac * (SENS_CHART.w - SENS_CHART.padL - SENS_CHART.padR);
+}
+function sensYScale(tqi) {
+  const plotH = SENS_CHART.h - SENS_CHART.padT - SENS_CHART.padB;
+  return SENS_CHART.padT + plotH - (Math.min(100, Math.max(0, tqi)) / 100) * plotH;
+}
+
 function polarToCartesian(cx, cy, r, angleDeg) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -59,13 +75,13 @@ function pieSvg(slices) {
   `;
 }
 
-function sensitivityChartSvg(series, currentTqi, thresholdTqi) {
-  const w = 320, h = 240, padL = 32, padR = 12, padT = 14, padB = 28;
+function sensitivityChartSvg(series, currentTqi, thresholdTqi, simulatedTqi) {
+  const { w, h, padL, padR, padT, padB } = SENS_CHART;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
 
-  const xScale = (frac) => padL + frac * plotW;
-  const yScale = (tqi) => padT + plotH - (Math.min(100, Math.max(0, tqi)) / 100) * plotH;
+  const xScale = sensXScale;
+  const yScale = sensYScale;
 
   const yGrid = [0, 25, 50, 75, 100].map((v) => `
     <line x1="${padL}" y1="${yScale(v).toFixed(1)}" x2="${w - padR}" y2="${yScale(v).toFixed(1)}" class="sens-grid-line" />
@@ -78,9 +94,10 @@ function sensitivityChartSvg(series, currentTqi, thresholdTqi) {
 
   const lines = series.map((s) => {
     const pointsStr = s.points.map((p) => `${xScale(p.frac).toFixed(1)},${yScale(p.tqi).toFixed(1)}`).join(' ');
-    const current = s.points[s.points.length - 1];
-    const marker = current
-      ? `<circle cx="${xScale(current.frac).toFixed(1)}" cy="${yScale(current.tqi).toFixed(1)}" r="4" fill="${s.color}" stroke="#1e293b" stroke-width="1"><title>${s.name} (current): ${current.tqi.toFixed(2)} TQI</title></circle>`
+    const markerData = s.marker || s.points[s.points.length - 1];
+    const safeId = toSafeId(s.name);
+    const marker = markerData
+      ? `<circle id="sens-marker-${safeId}" cx="${xScale(markerData.frac).toFixed(1)}" cy="${yScale(markerData.tqi).toFixed(1)}" r="4" fill="${s.color}" stroke="#1e293b" stroke-width="1"><title>${s.name}: ${markerData.tqi.toFixed(2)} TQI</title></circle>`
       : '';
     return `<polyline points="${pointsStr}" fill="none" stroke="${s.color}" stroke-width="2" class="sens-line" />${marker}`;
   }).join('');
@@ -88,6 +105,9 @@ function sensitivityChartSvg(series, currentTqi, thresholdTqi) {
   const scoreLine = `<line x1="${padL}" y1="${yScale(currentTqi).toFixed(1)}" x2="${w - padR}" y2="${yScale(currentTqi).toFixed(1)}" class="sens-score-line" />`;
   const thresholdLine = typeof thresholdTqi === 'number'
     ? `<line x1="${padL}" y1="${yScale(thresholdTqi).toFixed(1)}" x2="${w - padR}" y2="${yScale(thresholdTqi).toFixed(1)}" class="sens-threshold-line" />`
+    : '';
+  const simulatedLine = typeof simulatedTqi === 'number'
+    ? `<line id="sens-simulated-line" x1="${padL}" y1="${yScale(simulatedTqi).toFixed(1)}" x2="${w - padR}" y2="${yScale(simulatedTqi).toFixed(1)}" class="sens-simulated-line" />`
     : '';
 
   const legend = series.map((s) => `
@@ -104,6 +124,7 @@ function sensitivityChartSvg(series, currentTqi, thresholdTqi) {
         ${xTicks}
         ${thresholdLine}
         ${scoreLine}
+        ${simulatedLine}
         ${lines}
         <text x="${(padL + plotW / 2).toFixed(1)}" y="${h - 4}" class="mli-axis-label" text-anchor="middle">% of current severity remaining</text>
         <text x="10" y="${(padT + plotH / 2).toFixed(1)}" class="mli-axis-label" text-anchor="middle" transform="rotate(-90 10 ${(padT + plotH / 2).toFixed(1)})">TQI</text>
@@ -121,6 +142,7 @@ export class MlResultsPanel {
   static activeStrategy = 'fastest';
   static customBlend = 0.5;
   static targetTqi = 80;
+  static whatIfFracs = {}; // { [characteristic]: fraction of current severity kept, 0-1 } for the What-If Simulator
 
   static getModelScore(modelName, predictions) {
     const modelData = predictions[modelName];
@@ -265,19 +287,30 @@ export class MlResultsPanel {
 
   // Resulting TQI as an entire quality characteristic's scanned CWEs are scaled from
   // their current values (frac=1) down to fully remediated (frac=0) together.
-  static computeCharacteristicSensitivityCurve(models, predictions, modelName, steps = 6) {
+  static computeCharacteristicSensitivityCurve(models, predictions, modelName, steps = 11) {
     const points = [];
-    const modelData = predictions[modelName];
     for (let s = 0; s < steps; s++) {
       const frac = s / (steps - 1);
-      const simPredictions = {
-        ...predictions,
-        [modelName]: { ...modelData, inputs: (modelData.inputs || []).map(i => ({ ...i, value: i.value * frac })) }
-      };
-      const { finalTqi } = MlResultsPanel.calculateTqi(models, simPredictions);
-      points.push({ frac, tqi: parseFloat(finalTqi) });
+      points.push({ frac, tqi: MlResultsPanel.computeMultiCharacteristicTqi(models, predictions, { [modelName]: frac }) });
     }
     return points;
+  }
+
+  // TQI if one or more characteristics are scaled to an arbitrary fraction of their
+  // current severity simultaneously (any characteristic not present in fracByModel is
+  // left at its current/scanned value, i.e. fraction 1). Since each characteristic's
+  // charScore only depends on its own inputs and TQI is a weighted average of charScores,
+  // this is exact (no cross-characteristic interaction) — unlike CWEs sharing a model.
+  static computeMultiCharacteristicTqi(models, predictions, fracByModel) {
+    const simPredictions = {};
+    for (const m of models) {
+      const modelData = predictions[m];
+      if (modelData.error) { simPredictions[m] = modelData; continue; }
+      const frac = fracByModel[m] !== undefined ? fracByModel[m] : 1;
+      simPredictions[m] = { ...modelData, inputs: (modelData.inputs || []).map(i => ({ ...i, value: i.value * frac })) };
+    }
+    const { finalTqi } = MlResultsPanel.calculateTqi(models, simPredictions);
+    return parseFloat(finalTqi);
   }
 
   // Raw scanned severity summed across every model a CWE appears in — a rough
@@ -386,33 +419,67 @@ export class MlResultsPanel {
       return '<div class="training-no-samples">No quality characteristic currently reduces TQI enough to chart.</div>';
     }
     const top = impacts.slice(0, 6);
-    const series = top.map((item, idx) => ({
-      name: item.name,
-      color: CB_COLORS[idx % CB_COLORS.length],
-      points: MlResultsPanel.computeCharacteristicSensitivityCurve(models, predictions, item.name)
-    }));
-    return sensitivityChartSvg(series, baseTqi, MlResultsPanel.targetTqi);
+
+    // Each characteristic's slider defaults to 100% (current/unfixed) until the user drags it.
+    const fracByModel = {};
+    top.forEach(item => {
+      fracByModel[item.name] = MlResultsPanel.whatIfFracs[item.name] !== undefined ? MlResultsPanel.whatIfFracs[item.name] : 1;
+    });
+
+    const series = top.map((item, idx) => {
+      const frac = fracByModel[item.name];
+      return {
+        name: item.name,
+        color: CB_COLORS[idx % CB_COLORS.length],
+        points: MlResultsPanel.computeCharacteristicSensitivityCurve(models, predictions, item.name),
+        // Marker sits at this slider's own frac, holding every other characteristic at
+        // its current value — an isolated view of "if only this one changes".
+        marker: { frac, tqi: MlResultsPanel.computeMultiCharacteristicTqi(models, predictions, { [item.name]: frac }) }
+      };
+    });
+
+    // The simulated line reflects every slider at once — exact, since characteristics
+    // don't interact (see computeMultiCharacteristicTqi).
+    const simulatedTqi = MlResultsPanel.computeMultiCharacteristicTqi(models, predictions, fracByModel);
+    const chartHtml = sensitivityChartSvg(series, baseTqi, MlResultsPanel.targetTqi, simulatedTqi);
+
+    const sliderRows = top.map((item, idx) => {
+      const color = CB_COLORS[idx % CB_COLORS.length];
+      const safeId = toSafeId(item.name);
+      const pct = Math.round(fracByModel[item.name] * 100);
+      return `
+        <div class="mli-sim-row">
+          <span class="pie-legend-swatch" style="background:${color}"></span>
+          <span class="mli-sim-name">${item.name}</span>
+          <input type="range" class="mli-sim-slider" id="mli-sim-slider-${safeId}" min="0" max="100" step="1" value="${pct}" data-model="${item.name}">
+          <span class="mli-sim-pct" id="mli-sim-pct-${safeId}">${pct}%</span>
+        </div>
+      `;
+    }).join('');
+
+    const delta = simulatedTqi - baseTqi;
+    const deltaClass = delta > 0.005 ? 'mli-sim-delta-up' : (delta < -0.005 ? 'mli-sim-delta-down' : '');
+    const deltaSign = delta > 0 ? '+' : '';
+
+    return `
+      ${chartHtml}
+      <div class="mli-whatif">
+        <div class="mli-whatif-header">
+          <h4>What-If Simulator</h4>
+          <button id="mli-sim-reset" class="mli-sim-reset" type="button">Reset</button>
+        </div>
+        <div class="mli-sim-rows">${sliderRows}</div>
+        <div class="mli-sim-readout">
+          Simulated TQI: <span id="mli-sim-tqi-value">${simulatedTqi.toFixed(2)}</span>
+          <span id="mli-sim-tqi-delta" class="${deltaClass}">(${deltaSign}${delta.toFixed(2)})</span>
+        </div>
+      </div>
+    `;
   }
 
-  static renderImpactsTab(impacts, models, predictions) {
-    if (impacts.length === 0) {
-      return '<div class="training-no-samples">No CWE currently reduces TQI enough to prioritize — nice work.</div>';
-    }
-
-    const strategy = MlResultsPanel.activeStrategy;
-    const ranked = MlResultsPanel.rankByStrategy(impacts, models, predictions, strategy, MlResultsPanel.customBlend);
+  static renderImpactRows(ranked) {
     const maxDelta = Math.max(...ranked.map(i => i.delta), 0.0001);
-
-    const blendRowHtml = strategy === 'custom' ? `
-      <div class="mli-blend-row">
-        <span class="mli-blend-end">Effort-efficient</span>
-        <input type="range" id="mli-custom-blend" min="0" max="1" step="0.05" value="${MlResultsPanel.customBlend}">
-        <span class="mli-blend-end">Highest impact</span>
-        <span id="mli-custom-blend-val">${Math.round(MlResultsPanel.customBlend * 100)}%</span>
-      </div>
-    ` : '';
-
-    const rows = ranked.slice(0, 10).map((item, idx) => {
+    return ranked.slice(0, 10).map((item, idx) => {
       const rank = idx + 1;
       const pct = Math.max(2, (item.delta / maxDelta) * 100);
       const badges = (item.affectedModels || []).map(m => `<span class="cwe-priority-badge">${m}</span>`).join('');
@@ -433,6 +500,26 @@ export class MlResultsPanel {
         </div>
       `;
     }).join('');
+  }
+
+  static renderImpactsTab(impacts, models, predictions) {
+    if (impacts.length === 0) {
+      return '<div class="training-no-samples">No CWE currently reduces TQI enough to prioritize — nice work.</div>';
+    }
+
+    const strategy = MlResultsPanel.activeStrategy;
+    const ranked = MlResultsPanel.rankByStrategy(impacts, models, predictions, strategy, MlResultsPanel.customBlend);
+
+    const blendRowHtml = strategy === 'custom' ? `
+      <div class="mli-blend-row">
+        <span class="mli-blend-end">Effort-efficient</span>
+        <input type="range" id="mli-custom-blend" min="0" max="1" step="0.05" value="${MlResultsPanel.customBlend}">
+        <span class="mli-blend-end">Highest impact</span>
+        <span id="mli-custom-blend-val">${Math.round(MlResultsPanel.customBlend * 100)}%</span>
+      </div>
+    ` : '';
+
+    const rows = MlResultsPanel.renderImpactRows(ranked);
 
     return `
       <div class="mli-strategy-row">
@@ -445,7 +532,7 @@ export class MlResultsPanel {
         </select>
       </div>
       ${blendRowHtml}
-      <div class="cwe-priority-list">${rows}</div>
+      <div class="cwe-priority-list" id="mli-impacts-rows">${rows}</div>
     `;
   }
 
@@ -485,7 +572,7 @@ export class MlResultsPanel {
           ${pieHtml}
         </div>
         <div class="mli-tabpanel ${tab === 'sensitivity' ? '' : 'hidden'}" data-panel="sensitivity">
-          <p class="mli-tab-desc">How TQI responds as each quality characteristic's remaining severity is reduced from its current value toward zero. Dotted black = current TQI, dashed red = target.</p>
+          <p class="mli-tab-desc">Drag a slider to see what happens to TQI as that characteristic's severity changes. Dotted black = current TQI, dashed red = target, solid blue = your simulated scenario.</p>
           ${sensitivityHtml}
         </div>
         <div class="mli-tabpanel ${tab === 'impacts' ? '' : 'hidden'}" data-panel="impacts">
@@ -744,9 +831,20 @@ export class MlResultsPanel {
 
       const blendSlider = section.querySelector('#mli-custom-blend');
       if (blendSlider) {
+        // Updates the ranked list + label in place rather than calling refreshInsightsSection(),
+        // which would replace this slider's own DOM node mid-drag and cut the drag short.
         blendSlider.addEventListener('input', (e) => {
           MlResultsPanel.customBlend = parseFloat(e.target.value);
-          refreshInsightsSection();
+
+          const valLabel = section.querySelector('#mli-custom-blend-val');
+          if (valLabel) valLabel.textContent = `${Math.round(MlResultsPanel.customBlend * 100)}%`;
+
+          const { impacts: cweImpacts } = MlResultsPanel.computeCweImpact(models, predictions);
+          const positiveCweImpacts = cweImpacts.filter(i => i.delta > 0.0001);
+          const ranked = MlResultsPanel.rankByStrategy(positiveCweImpacts, models, predictions, 'custom', MlResultsPanel.customBlend);
+
+          const rowsContainer = section.querySelector('#mli-impacts-rows');
+          if (rowsContainer) rowsContainer.innerHTML = MlResultsPanel.renderImpactRows(ranked);
         });
       }
 
@@ -754,6 +852,64 @@ export class MlResultsPanel {
       if (targetInput) {
         targetInput.addEventListener('input', (e) => {
           MlResultsPanel.targetTqi = parseFloat(e.target.value) || 0;
+          refreshInsightsSection();
+        });
+      }
+
+      // What-If Simulator: drags directly move the chart's markers/simulated line and
+      // update the readouts in place — never rebuilds the section (that would drop the drag).
+      const simSliders = section.querySelectorAll('.mli-sim-slider');
+      simSliders.forEach((slider) => {
+        slider.addEventListener('input', (e) => {
+          const modelName = e.target.getAttribute('data-model');
+          const frac = parseFloat(e.target.value) / 100;
+          MlResultsPanel.whatIfFracs[modelName] = frac;
+
+          const safeId = modelName.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+          const pctLabel = section.querySelector(`#mli-sim-pct-${safeId}`);
+          if (pctLabel) pctLabel.textContent = `${Math.round(frac * 100)}%`;
+
+          // Move this characteristic's own marker (holding every other characteristic at current).
+          const singleTqi = MlResultsPanel.computeMultiCharacteristicTqi(models, predictions, { [modelName]: frac });
+          const marker = section.querySelector(`#sens-marker-${safeId}`);
+          if (marker) {
+            marker.setAttribute('cx', sensXScale(frac).toFixed(1));
+            marker.setAttribute('cy', sensYScale(singleTqi).toFixed(1));
+            const title = marker.querySelector('title');
+            if (title) title.textContent = `${modelName}: ${singleTqi.toFixed(2)} TQI`;
+          }
+
+          // Recompute the combined effect of every slider currently on screen.
+          const fracByModel = {};
+          simSliders.forEach((s) => { fracByModel[s.getAttribute('data-model')] = parseFloat(s.value) / 100; });
+          const simulatedTqi = MlResultsPanel.computeMultiCharacteristicTqi(models, predictions, fracByModel);
+
+          const simLine = section.querySelector('#sens-simulated-line');
+          if (simLine) {
+            const y = sensYScale(simulatedTqi).toFixed(1);
+            simLine.setAttribute('y1', y);
+            simLine.setAttribute('y2', y);
+          }
+
+          const baseTqi = parseFloat(MlResultsPanel.calculateTqi(models, predictions).finalTqi);
+          const delta = simulatedTqi - baseTqi;
+
+          const tqiValueEl = section.querySelector('#mli-sim-tqi-value');
+          if (tqiValueEl) tqiValueEl.textContent = simulatedTqi.toFixed(2);
+
+          const deltaEl = section.querySelector('#mli-sim-tqi-delta');
+          if (deltaEl) {
+            deltaEl.textContent = `(${delta > 0 ? '+' : ''}${delta.toFixed(2)})`;
+            deltaEl.className = delta > 0.005 ? 'mli-sim-delta-up' : (delta < -0.005 ? 'mli-sim-delta-down' : '');
+          }
+        });
+      });
+
+      const simResetBtn = section.querySelector('#mli-sim-reset');
+      if (simResetBtn) {
+        simResetBtn.addEventListener('click', () => {
+          simSliders.forEach((s) => { delete MlResultsPanel.whatIfFracs[s.getAttribute('data-model')]; });
           refreshInsightsSection();
         });
       }

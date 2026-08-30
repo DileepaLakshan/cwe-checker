@@ -195,7 +195,7 @@ export async function calculateAIWeights(projectDescription, foundCwes = [], mod
   // Use temperature 0.1 for stability with complex tool calls
   const llm = new ChatGroq({
     apiKey: apiKey,
-    model: "llama-3.3-70b-versatile", // Updated to a currently supported Groq model
+    model: "openai/gpt-oss-120b", // llama-3.3-70b-versatile was retired by Groq; verified available on this account via /v1/models
     temperature: 0.1,
   });
 

@@ -717,6 +717,106 @@
   stroke-dasharray: 5 3;
 }
 
+.sens-simulated-line {
+  stroke: #2563eb;
+  stroke-width: 2;
+}
+
+/* Sensitivity tab: What-If Simulator */
+.mli-whatif {
+  width: 100%;
+  max-width: 480px;
+  margin: 20px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.mli-whatif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mli-whatif-header h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mli-sim-reset {
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.mli-sim-reset:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.mli-sim-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mli-sim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mli-sim-name {
+  font-size: 12px;
+  color: #1e293b;
+  min-width: 90px;
+}
+
+.mli-sim-slider {
+  flex: 1;
+}
+
+.mli-sim-pct {
+  font-family: monospace;
+  font-size: 12px;
+  color: #64748b;
+  min-width: 36px;
+  text-align: right;
+}
+
+.mli-sim-readout {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #1e293b;
+  text-align: center;
+}
+
+#mli-sim-tqi-value {
+  font-family: monospace;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.mli-sim-delta-up {
+  color: #16a34a;
+  font-family: monospace;
+  margin-left: 4px;
+}
+
+.mli-sim-delta-down {
+  color: #dc2626;
+  font-family: monospace;
+  margin-left: 4px;
+}
+
 /* Impacts tab: strategy controls */
 .mli-strategy-row {
   display: flex;
