@@ -713,7 +713,7 @@ export class MlResultsPanel {
             
             <div class="ml-inputs-row">
               ${topInputs.map(i => `
-                <div class="ml-input-node-wrapper">
+                <div class="ml-input-node-wrapper" style="cursor: pointer;" data-cwe="${i.cwe}">
                   <div class="ml-input-node">
                     <div class="ml-input-value">${i.value.toFixed(4)}</div>
                   </div>
@@ -784,6 +784,40 @@ export class MlResultsPanel {
     mlResultsPanel.innerHTML = html;
 
     TrainingPanel.wireEntryButton();
+
+    // Add click listeners to navigate to scanner results for CWE nodes
+    mlResultsPanel.querySelectorAll('.ml-input-node-wrapper').forEach(wrapper => {
+      wrapper.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const cweLabel = wrapper.getAttribute('data-cwe');
+        if (cweLabel) {
+          import('../../services/editor-service.js').then(module => {
+            module.openScanResultsTab();
+            setTimeout(() => {
+              const scanPanel = document.getElementById('scan-results-panel');
+              if (scanPanel) {
+                const cards = scanPanel.querySelectorAll('.result-card');
+                for (const card of cards) {
+                  const vulnIdSpan = card.querySelector('.vuln-id');
+                  if (vulnIdSpan && vulnIdSpan.textContent.includes(cweLabel)) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const originalBg = card.style.backgroundColor;
+                    const originalTransition = card.style.transition;
+                    card.style.transition = 'background-color 0.3s ease';
+                    card.style.backgroundColor = 'rgba(234, 179, 8, 0.2)'; // Highlight color
+                    setTimeout(() => {
+                      card.style.backgroundColor = originalBg;
+                      setTimeout(() => { card.style.transition = originalTransition; }, 300);
+                    }, 1500);
+                    break;
+                  }
+                }
+              }
+            }, 100);
+          });
+        }
+      });
+    });
 
     // Export Report
     const exportReportBtn = mlResultsPanel.querySelector('#export-report-btn');
