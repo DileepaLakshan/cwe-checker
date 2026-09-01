@@ -635,8 +635,8 @@
 }
 
 .pie-svg {
-  width: 220px;
-  height: 220px;
+  width: 420px;
+  height: 420px;
   flex-shrink: 0;
 }
 
@@ -686,8 +686,8 @@
 }
 
 .sens-svg {
-  width: 320px;
-  height: 240px;
+  width: 520px;
+  height: 440px;
   flex-shrink: 0;
 }
 
@@ -719,7 +719,7 @@
 
 .sens-simulated-line {
   stroke: #2563eb;
-  stroke-width: 2;
+  stroke-width: 1;
 }
 
 /* Sensitivity tab: What-If Simulator */
