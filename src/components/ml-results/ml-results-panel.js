@@ -15,7 +15,7 @@ function toSafeId(str) {
 // coordinate mapping as sensitivityChartSvg below.
 const SENS_CHART = { w: 320, h: 240, padL: 32, padR: 12, padT: 14, padB: 28 };
 function sensXScale(frac) {
-  return SENS_CHART.padL + frac * (SENS_CHART.w - SENS_CHART.padL - SENS_CHART.padR);
+  return SENS_CHART.padL + (frac / 2) * (SENS_CHART.w - SENS_CHART.padL - SENS_CHART.padR);
 }
 function sensYScale(tqi) {
   const plotH = SENS_CHART.h - SENS_CHART.padT - SENS_CHART.padB;
@@ -88,7 +88,7 @@ function sensitivityChartSvg(series, currentTqi, thresholdTqi, simulatedTqi) {
     <text x="${padL - 4}" y="${(yScale(v) + 3).toFixed(1)}" class="mli-axis-label" text-anchor="end">${v}</text>
   `).join('');
 
-  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => `
+  const xTicks = [0, 0.5, 1, 1.5, 2].map((f) => `
     <text x="${xScale(f).toFixed(1)}" y="${h - padB + 12}" class="mli-axis-label" text-anchor="middle">${Math.round(f * 100)}%</text>
   `).join('');
 
@@ -287,10 +287,10 @@ export class MlResultsPanel {
 
   // Resulting TQI as an entire quality characteristic's scanned CWEs are scaled from
   // their current values (frac=1) down to fully remediated (frac=0) together.
-  static computeCharacteristicSensitivityCurve(models, predictions, modelName, steps = 11) {
+  static computeCharacteristicSensitivityCurve(models, predictions, modelName, steps = 21) {
     const points = [];
     for (let s = 0; s < steps; s++) {
-      const frac = s / (steps - 1);
+      const frac = (s / (steps - 1)) * 2;
       points.push({ frac, tqi: MlResultsPanel.computeMultiCharacteristicTqi(models, predictions, { [modelName]: frac }) });
     }
     return points;
@@ -446,13 +446,15 @@ export class MlResultsPanel {
     const sliderRows = top.map((item, idx) => {
       const color = CB_COLORS[idx % CB_COLORS.length];
       const safeId = toSafeId(item.name);
-      const pct = Math.round(fracByModel[item.name] * 100);
+      const frac = fracByModel[item.name];
+      const pct = Math.round(frac * 100);
+      const rawScore = MlResultsPanel.getModelScore(item.name, predictions) * frac;
       return `
         <div class="mli-sim-row">
           <span class="pie-legend-swatch" style="background:${color}"></span>
           <span class="mli-sim-name">${item.name}</span>
-          <input type="range" class="mli-sim-slider" id="mli-sim-slider-${safeId}" min="0" max="100" step="1" value="${pct}" data-model="${item.name}">
-          <span class="mli-sim-pct" id="mli-sim-pct-${safeId}">${pct}%</span>
+          <input type="range" class="mli-sim-slider" id="mli-sim-slider-${safeId}" min="0" max="200" step="1" value="${pct}" data-model="${item.name}">
+          <span class="mli-sim-pct" id="mli-sim-pct-${safeId}">${rawScore.toFixed(2)}</span>
         </div>
       `;
     }).join('');
@@ -901,8 +903,9 @@ export class MlResultsPanel {
 
           const safeId = modelName.replace(/[^a-zA-Z0-9_-]/g, '-');
 
+          const rawScore = MlResultsPanel.getModelScore(modelName, predictions) * frac;
           const pctLabel = section.querySelector(`#mli-sim-pct-${safeId}`);
-          if (pctLabel) pctLabel.textContent = `${Math.round(frac * 100)}%`;
+          if (pctLabel) pctLabel.textContent = rawScore.toFixed(2);
 
           // Move this characteristic's own marker (holding every other characteristic at current).
           const singleTqi = MlResultsPanel.computeMultiCharacteristicTqi(models, predictions, { [modelName]: frac });
