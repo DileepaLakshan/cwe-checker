@@ -18,6 +18,8 @@ Rules:
 - Rank all characteristics globally 1 (most critical) to N (least critical), no ties, and assign weights consistent with that ranking.
 - For EACH characteristic, give at least 3 distinct evidence-based reasons, each with its own global rank across all reasons, a supporting authority/standard, and any affected/representative CWEs.
 - If specific found CWEs are especially critical for this domain, list them with a weight-reduction penalty.
+- ALWAYS include the 'cwePenalties' key. If there are no penalties, provide an empty array [].
+- ALWAYS output valid JSON matching the schema perfectly. Do NOT include random strings like "reasons" or ":" outside of standard key-value pairs.
 
 PROJECT DESCRIPTION:
 {projectDescription}
@@ -50,7 +52,7 @@ const outputSchema = z.object({
       cweId: z.string().describe("The CWE ID, e.g. CWE-79"),
       penalty: z.number().describe("The weight reduction penalty, e.g. 0.5")
     })
-  ).describe("List of specific CWE IDs and their weight reductions/penalties")
+  ).optional().default([]).describe("List of specific CWE IDs and their weight reductions/penalties (can be empty)")
 });
 
 export async function calculateAIWeights(projectDescription, foundCwes = [], models = []) {
