@@ -590,6 +590,8 @@ export class MlResultsPanel {
     `;
   }
 
+  static currentZoom = 1;
+
   static render(mlData) {
     const { mlResultsPanel } = getDOM();
     if (!mlResultsPanel) return;
@@ -619,7 +621,12 @@ export class MlResultsPanel {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <h2>ML INTEGRATION</h2>
-          <button id="train-model-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #2563eb;">Train Model</button>
+          <div style="display: flex; align-items: center; margin-left: auto; margin-right: 15px; background: #f1f5f9; border-radius: 6px; padding: 2px;">
+            <button id="zoom-out-btn" class="adjust-weights-btn" style="margin: 0; background-color: transparent; color: #475569; padding: 4px 12px; font-size: 16px; box-shadow: none;">-</button>
+            <span id="zoom-level-text" style="margin: 0 10px; font-weight: 500; font-size: 14px; min-width: 45px; text-align: center;">${Math.round(MlResultsPanel.currentZoom * 100)}%</span>
+            <button id="zoom-in-btn" class="adjust-weights-btn" style="margin: 0; background-color: transparent; color: #475569; padding: 4px 12px; font-size: 16px; box-shadow: none;">+</button>
+          </div>
+          <button id="train-model-btn" class="adjust-weights-btn" style="margin-left: 0; margin-right: 10px; background-color: #2563eb;">Train Model</button>
           <button id="save-snapshot-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #10b981;">Save Snapshot</button>
           <button id="ai-panel-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #8b5cf6;">AI Weights</button>
           <button id="export-report-btn" class="adjust-weights-btn" style="margin-right: 10px; background-color: #f59e0b;">Export Report</button>
@@ -635,7 +642,7 @@ export class MlResultsPanel {
              <span id="ai-status" style="font-size: 13px; color: #d97706; font-weight: 500;"></span>
              <button id="ai-generate-btn" class="adjust-weights-btn" style="background-color: #7c3aed;">Generate with Groq</button>
           </div>
-          <div id="ai-reasoning" class="hidden" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd6fe; font-size: 13px; color: #4c1d95; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></div>
+          <div id="ai-reasoning" class="hidden" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd6fe; font-size: 13px; color: #4c1d95; max-height: none; overflow-y: visible; white-space: pre-wrap;"></div>
         </div>
 
         <!-- Weights Control Panel (hidden by default) -->
@@ -660,7 +667,7 @@ export class MlResultsPanel {
           </div>
         </div>
         
-        <div class="ml-tqi-tree">
+        <div class="ml-tqi-tree" style="transform: scale(${MlResultsPanel.currentZoom}); transform-origin: top center; transition: transform 0.2s ease;">
           <!-- TQI Root Node -->
           <div class="ml-output-node tqi-node">
             <div class="ml-score">${tqiScore}</div>
@@ -982,6 +989,30 @@ export class MlResultsPanel {
     };
 
     wireInsightsSection();
+
+    // Zoom Controls
+    const zoomInBtn = mlResultsPanel.querySelector('#zoom-in-btn');
+    const zoomOutBtn = mlResultsPanel.querySelector('#zoom-out-btn');
+    const zoomLevelText = mlResultsPanel.querySelector('#zoom-level-text');
+    const tqiTree = mlResultsPanel.querySelector('.ml-tqi-tree');
+
+    const updateZoom = (newZoom) => {
+      // Limit zoom between 0.2 (20%) and 2.0 (200%)
+      MlResultsPanel.currentZoom = Math.max(0.2, Math.min(2.0, newZoom));
+      if (tqiTree) {
+        tqiTree.style.transform = `scale(${MlResultsPanel.currentZoom})`;
+      }
+      if (zoomLevelText) {
+        zoomLevelText.textContent = `${Math.round(MlResultsPanel.currentZoom * 100)}%`;
+      }
+    };
+
+    if (zoomInBtn) {
+      zoomInBtn.addEventListener('click', () => updateZoom(MlResultsPanel.currentZoom + 0.1));
+    }
+    if (zoomOutBtn) {
+      zoomOutBtn.addEventListener('click', () => updateZoom(MlResultsPanel.currentZoom - 0.1));
+    }
 
     // Add interactivity
     const clickableNodes = mlResultsPanel.querySelectorAll('.ml-node-clickable');

@@ -21,6 +21,30 @@ Rules:
 - ALWAYS include the 'cwePenalties' key. If there are no penalties, provide an empty array [].
 - ALWAYS output valid JSON matching the schema perfectly. Do NOT include random strings like "reasons" or ":" outside of standard key-value pairs.
 
+CRITICAL: Your output must strictly follow this JSON structure for EVERY characteristic:
+{{
+  "domain": "...",
+  "characteristics": [
+    {{
+      "name": "Characteristic Name",
+      "global_rank": 1,
+      "priority": "High",
+      "weight": 2.5,
+      "reasons": [
+        {{
+          "reason": "...",
+          "global_rank": 1,
+          "authority": "...",
+          "affected_cwes": ["CWE-1"],
+          "representative_cwes": ["CWE-1"]
+        }}
+      ]
+    }}
+    // ... MUST output an object like above for EACH evaluated characteristic
+  ],
+  "cwePenalties": []
+}}
+
 PROJECT DESCRIPTION:
 {projectDescription}
 
@@ -85,11 +109,23 @@ export async function calculateAIWeights(projectDescription, foundCwes = [], mod
 
   const chain = prompt.pipe(structuredLlm);
 
-  const response = await chain.invoke({
-    projectDescription,
-    foundCwes: foundCwes.length > 0 ? foundCwes.join(", ") : "None",
-    models: models.length > 0 ? models.join(", ") : "Security, Maintainability, Reliability, Performance Efficiency, Usability, Portability, Functional Suitability",
-  });
-
-  return response;
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await chain.invoke({
+        projectDescription,
+        foundCwes: foundCwes.length > 0 ? foundCwes.join(", ") : "None",
+        models: models.length > 0 ? models.join(", ") : "Security, Maintainability, Reliability, Performance Efficiency, Usability, Portability, Functional Suitability",
+      });
+      return response;
+    } catch (e) {
+      lastError = e;
+      console.warn(`[AI Weight Service] Attempt ${attempt} failed:`, e.message);
+      if (attempt === 3) {
+        throw new Error(`Failed to generate valid AI weights after 3 attempts: ${e.message}`);
+      }
+      // Wait a moment before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
 }
