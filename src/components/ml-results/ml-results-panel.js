@@ -93,13 +93,15 @@ function sensitivityChartSvg(series, currentTqi, thresholdTqi, simulatedTqi) {
   `).join('');
 
   const lines = series.map((s) => {
+    const isVisible = s.visible !== false;
+    const visibilityStyle = isVisible ? '' : 'display: none;';
     const pointsStr = s.points.map((p) => `${xScale(p.frac).toFixed(1)},${yScale(p.tqi).toFixed(1)}`).join(' ');
     const markerData = s.marker || s.points[s.points.length - 1];
     const safeId = toSafeId(s.name);
     const marker = markerData
-      ? `<circle id="sens-marker-${safeId}" cx="${xScale(markerData.frac).toFixed(1)}" cy="${yScale(markerData.tqi).toFixed(1)}" r="4" fill="${s.color}" stroke="#1e293b" stroke-width="1"><title>${s.name}: ${markerData.tqi.toFixed(2)} TQI</title></circle>`
+      ? `<circle id="sens-marker-${safeId}" cx="${xScale(markerData.frac).toFixed(1)}" cy="${yScale(markerData.tqi).toFixed(1)}" r="4" fill="${s.color}" stroke="#1e293b" stroke-width="1" style="${visibilityStyle}"><title>${s.name}: ${markerData.tqi.toFixed(2)} TQI</title></circle>`
       : '';
-    return `<polyline points="${pointsStr}" fill="none" stroke="${s.color}" stroke-width="2" class="sens-line" />${marker}`;
+    return `<polyline id="sens-line-${safeId}" points="${pointsStr}" fill="none" stroke="${s.color}" stroke-width="2" class="sens-line" style="${visibilityStyle}" />${marker}`;
   }).join('');
 
   const scoreLine = `<line x1="${padL}" y1="${yScale(currentTqi).toFixed(1)}" x2="${w - padR}" y2="${yScale(currentTqi).toFixed(1)}" class="sens-score-line" />`;
@@ -143,6 +145,7 @@ export class MlResultsPanel {
   static customBlend = 0.5;
   static targetTqi = 80;
   static whatIfFracs = {}; // { [characteristic]: fraction of current severity kept, 0-1 } for the What-If Simulator
+  static visibleSensLines = {}; // { [characteristic]: boolean }
 
   static getModelScore(modelName, predictions) {
     const modelData = predictions[modelName];
@@ -431,6 +434,7 @@ export class MlResultsPanel {
       return {
         name: item.name,
         color: CB_COLORS[idx % CB_COLORS.length],
+        visible: MlResultsPanel.visibleSensLines[item.name] !== false,
         points: MlResultsPanel.computeCharacteristicSensitivityCurve(models, predictions, item.name),
         // Marker sits at this slider's own frac, holding every other characteristic at
         // its current value — an isolated view of "if only this one changes".
@@ -449,8 +453,10 @@ export class MlResultsPanel {
       const frac = fracByModel[item.name];
       const pct = Math.round(frac * 100);
       const rawScore = MlResultsPanel.getModelScore(item.name, predictions) * frac;
+      const isVisible = MlResultsPanel.visibleSensLines[item.name] !== false;
       return `
         <div class="mli-sim-row">
+          <input type="checkbox" class="mli-sim-toggle" data-model="${item.name}" ${isVisible ? 'checked' : ''} title="Toggle line visibility" style="cursor:pointer; margin-right:4px;">
           <span class="pie-legend-swatch" style="background:${color}"></span>
           <span class="mli-sim-name">${item.name}</span>
           <input type="range" class="mli-sim-slider" id="mli-sim-slider-${safeId}" min="0" max="200" step="1" value="${pct}" data-model="${item.name}">
@@ -940,6 +946,20 @@ export class MlResultsPanel {
             deltaEl.textContent = `(${delta > 0 ? '+' : ''}${delta.toFixed(2)})`;
             deltaEl.className = delta > 0.005 ? 'mli-sim-delta-up' : (delta < -0.005 ? 'mli-sim-delta-down' : '');
           }
+        });
+      });
+      section.querySelectorAll('.mli-sim-toggle').forEach((toggle) => {
+        toggle.addEventListener('change', (e) => {
+          const modelName = e.target.getAttribute('data-model');
+          const isVisible = e.target.checked;
+          MlResultsPanel.visibleSensLines[modelName] = isVisible;
+          const safeId = modelName.replace(/[^a-zA-Z0-9_-]/g, '-');
+          
+          const line = section.querySelector(`#sens-line-${safeId}`);
+          if (line) line.style.display = isVisible ? '' : 'none';
+          
+          const marker = section.querySelector(`#sens-marker-${safeId}`);
+          if (marker) marker.style.display = isVisible ? '' : 'none';
         });
       });
 
