@@ -3,7 +3,13 @@ import { TrainingPanel } from './training-panel.js';
 function metricBar(label, candidateVal, productionVal, higherIsBetter) {
   const safeCandidate = typeof candidateVal === 'number' ? candidateVal : 0;
   const safeProduction = typeof productionVal === 'number' ? productionVal : null;
-  const max = Math.max(Math.abs(safeCandidate), Math.abs(safeProduction || 0), 0.0001);
+  
+  let defaultScale = 1.0;
+  if (!higherIsBetter) {
+    defaultScale = Math.max(1.0, Math.abs(safeCandidate) * 2);
+  }
+  
+  const max = Math.max(Math.abs(safeCandidate), Math.abs(safeProduction || 0), defaultScale);
 
   const candidatePct = Math.min(100, (Math.abs(safeCandidate) / max) * 100);
   const productionPct = safeProduction !== null ? Math.min(100, (Math.abs(safeProduction) / max) * 100) : null;
@@ -16,7 +22,7 @@ function metricBar(label, candidateVal, productionVal, higherIsBetter) {
 
   return `
     <div class="metric-bar-row">
-      <div class="metric-bar-label">${label}</div>
+      <div class="metric-bar-label" title="${label}">${label}</div>
       <div class="metric-bar-track">
         <div class="metric-bar-fill candidate ${betterClass(safeCandidate, safeProduction)}" style="width:${candidatePct}%"></div>
       </div>
@@ -28,7 +34,7 @@ function metricBar(label, candidateVal, productionVal, higherIsBetter) {
         <div class="metric-bar-fill production" style="width:${productionPct}%"></div>
       </div>
       <div class="metric-bar-value baseline">${safeProduction.toFixed(3)}</div>`
-          : '<div class="metric-bar-value baseline">-</div><div></div>'
+          : '<div class="metric-bar-track baseline" style="background: transparent;"></div><div class="metric-bar-value baseline">-</div>'
       }
     </div>
   `;
@@ -177,23 +183,24 @@ export class TrainingResults {
           <div class="training-result-card" data-characteristic="${characteristic}">
             <div class="training-result-header">
               <h4>${characteristic}</h4>
-              <span class="training-badge">candidate vs ${prodMetrics ? 'current' : 'bundled (no stored metrics)'}</span>
             </div>
 
             <div class="training-metrics">
-              ${metricBar('R²', m.r2, prodMetrics ? prodMetrics.r2 : null, true)}
-              ${metricBar('MAE', m.mae, prodMetrics ? prodMetrics.mae : null, false)}
-              ${metricBar('RMSE', m.rmse, prodMetrics ? prodMetrics.rmse : null, false)}
-              ${metricBar('CV mean', m.cv_mean, prodMetrics ? prodMetrics.cv_mean : null, true)}
+              ${metricBar('Overall Accuracy (R²)', m.r2, prodMetrics ? prodMetrics.r2 : null, true)}
+              ${metricBar('Avg Error (MAE)', m.mae, prodMetrics ? prodMetrics.mae : null, false)}
+              ${metricBar('Large Error Penalty (RMSE)', m.rmse, prodMetrics ? prodMetrics.rmse : null, false)}
+              ${metricBar('Reliability (CV mean)', m.cv_mean, prodMetrics ? prodMetrics.cv_mean : null, true)}
             </div>
 
             <div class="training-result-body">
               <div class="training-scatter-wrapper">
-                <div class="training-scatter-title">Predicted vs actual (held-out)</div>
+                <div class="training-scatter-title">Model Accuracy (Prediction vs Reality)</div>
+                <div style="font-size: 11px; color: hsl(var(--text-muted)); margin-bottom: 8px;">Comparing our model's guesses against real known values. Points closer to the diagonal line mean better accuracy.</div>
                 ${scatterSvg(result.samples)}
               </div>
               <div class="training-importances">
-                <div class="training-scatter-title">Top features</div>
+                <div class="training-scatter-title">Most Important Factors</div>
+                <div style="font-size: 11px; color: hsl(var(--text-muted)); margin-bottom: 8px;">The key factors the model found most useful for making its predictions.</div>
                 ${result.featureImportances
                   .slice(0, 6)
                   .map(
@@ -210,11 +217,13 @@ export class TrainingResults {
 
             <div class="training-result-body">
               <div class="training-scatter-wrapper">
-                <div class="training-scatter-title">Distribution of ${characteristic} Scores</div>
+                <div class="training-scatter-title">Score Distribution</div>
+                <div style="font-size: 11px; color: hsl(var(--text-muted)); margin-bottom: 8px;">How common are different scores for ${characteristic}? This shows the spread of the data.</div>
                 ${histogramSvg(result.yDistribution, 'Score')}
               </div>
               <div class="training-scatter-wrapper">
-                <div class="training-scatter-title">Predicted Y vs Prediction Error</div>
+                <div class="training-scatter-title">Where the Model Makes Mistakes</div>
+                <div style="font-size: 11px; color: hsl(var(--text-muted)); margin-bottom: 8px;">Shows if the model tends to over-predict or under-predict for certain values. A flat spread around the center line is ideal.</div>
                 ${errorScatterSvg(result.samples)}
               </div>
             </div>

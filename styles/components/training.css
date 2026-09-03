@@ -254,7 +254,7 @@
 }
 .metric-bar-row {
   display: grid;
-  grid-template-columns: 60px 1fr 48px 1fr 48px;
+  grid-template-columns: 175px 1fr 48px 1fr 48px;
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
