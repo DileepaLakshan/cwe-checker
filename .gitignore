@@ -90,6 +90,7 @@ typings/
 
 # Electron-Forge
 out/
-
-# Local binary assets that are too large for GitHub
-bin/win/*.exe
+bin/win/opengrep_windows_x86.exe
+bin/win/trivy.exe
+pipline/
+ml_models/

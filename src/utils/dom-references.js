@@ -13,6 +13,7 @@ export function initDOMReferences() {
     welcomeScreen: document.getElementById('welcome-screen-component'),
     resultsPanel: document.getElementById('scan-results-panel'),
     mlResultsPanel: document.getElementById('ml-results-component'),
+    cweDetailsComponent: document.getElementById('cwe-details-component'),
     sastContainer: document.getElementById('sast-results-container'),
     scaContainer: document.getElementById('sca-results-container'),
     summaryContainer: document.getElementById('results-summary'),

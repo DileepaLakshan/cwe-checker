@@ -166,11 +166,11 @@ export class HistoryModal {
       // Base version
       const baseSnap = snapshots[0];
       versionDiffs.innerHTML += `
-        <div class="vc-version-diff" style="border-left: 4px solid #94a3b8;">
+        <div class="vc-version-diff" style="border-left: 4px solid #6366f1;">
           <div class="vc-diff-header">
             <div>
-               <strong>${baseSnap.versionName}</strong> (Baseline)
-               <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(baseSnap.timestamp).toLocaleString()} | Initial TQI: ${baseSnap.tqiScore} / 100</div>
+               <strong style="color: #4338ca; font-size: 15px;">${baseSnap.versionName}</strong> <span style="color: #6366f1; font-weight: 600;">(Baseline)</span>
+               <div style="font-size:12px; color:#4f46e5; margin-top:4px;">${new Date(baseSnap.timestamp).toLocaleString()} | Initial TQI: <span style="font-weight:600;">${baseSnap.tqiScore}</span> / 100</div>
             </div>
             <div style="display:flex; gap: 8px;">
                <button class="vc-restore-btn" onclick="restoreVcWeights('${baseSnap.id}', '${pName}')">Restore</button>
@@ -190,7 +190,7 @@ export class HistoryModal {
         const newCwes = [...setB].filter(x => !setA.has(x));
         
         const tqiDelta = parseFloat(snapB.tqiScore) - parseFloat(snapA.tqiScore);
-        const tqiColor = tqiDelta > 0 ? '#16a34a' : (tqiDelta < 0 ? '#dc2626' : '#64748b');
+        const tqiColor = tqiDelta > 0 ? '#059669' : (tqiDelta < 0 ? '#e11d48' : '#6366f1');
         const tqiSign = tqiDelta > 0 ? '+' : '';
 
         let mlDiffHtml = '';
@@ -200,11 +200,11 @@ export class HistoryModal {
            const sB = snapB.modelScores[m] || 0;
            if (sA !== sB) {
              const diff = sB - sA;
-             const diffClass = diff < 0 ? '#16a34a' : (diff > 0 ? '#dc2626' : '#64748b');
+             const diffClass = diff < 0 ? '#059669' : (diff > 0 ? '#e11d48' : '#6366f1');
              const diffSign = diff > 0 ? '+' : '';
              mlDiffHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-               <span>${m}:</span> 
-               <span>${sA.toFixed(2)} &rarr; ${sB.toFixed(2)} (<strong style="color:${diffClass}">${diffSign}${diff.toFixed(2)}</strong>)</span>
+               <span style="color: #3730a3; font-weight: 600;">${m}:</span> 
+               <span style="color: #4338ca; font-weight: 500;">${sA.toFixed(2)} &rarr; ${sB.toFixed(2)} (<strong style="color:${diffClass}">${diffSign}${diff.toFixed(2)}</strong>)</span>
              </div>`;
            }
         });
@@ -212,8 +212,8 @@ export class HistoryModal {
         let mlSection = '';
         if (mlDiffHtml) {
            mlSection = `
-             <div style="margin-top: 15px; font-size: 13px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-               <strong style="color:#334155; display:block; margin-bottom:8px;">Model Score Changes</strong>
+             <div style="margin-top: 15px; font-size: 13px; background: #eef2ff; padding: 10px; border-radius: 6px; border: 1px solid #c7d2fe;">
+               <strong style="color:#312e81; display:block; margin-bottom:8px;">Model Score Changes</strong>
                ${mlDiffHtml}
              </div>
            `;
@@ -223,8 +223,8 @@ export class HistoryModal {
           <div class="vc-version-diff" style="border-left: 4px solid ${tqiColor};">
             <div class="vc-diff-header">
               <div>
-                 <strong>${snapB.versionName}</strong>
-                 <div style="font-size:12px; color:#64748b; margin-top:4px;">${new Date(snapB.timestamp).toLocaleString()}</div>
+                 <strong style="color: #4338ca; font-size: 15px;">${snapB.versionName}</strong>
+                 <div style="font-size:12px; color:#4f46e5; margin-top:4px;">${new Date(snapB.timestamp).toLocaleString()}</div>
               </div>
               <div style="display:flex; gap: 15px; align-items:center;">
                  <div style="text-align:right;">
@@ -282,6 +282,108 @@ export class HistoryModal {
     }
     if (btnCloseHistory) {
       btnCloseHistory.onclick = () => modalHistory.classList.add('hidden');
+    }
+
+    // --- MODEL VERSIONS TAB ---
+    const tabProjects = document.getElementById('vc-tab-projects');
+    const tabModels = document.getElementById('vc-tab-models');
+    const projectsTab = document.getElementById('vc-projects-tab');
+    const modelsTab = document.getElementById('vc-models-tab');
+    const modelsList = document.getElementById('vc-models-list');
+
+    const renderModelVersions = async () => {
+      if (!modelsList) return;
+      modelsList.innerHTML = '<p style="color:#64748b; font-size:13px;">Loading...</p>';
+
+      let registry = {};
+      try {
+        registry = await window.trainingAPI.listVersions();
+      } catch (e) {
+        modelsList.innerHTML = `<p style="color:#991b1b; font-size:13px;">Failed to load models: ${e.message || e}</p>`;
+        return;
+      }
+
+      const characteristics = Object.keys(registry).sort();
+      if (characteristics.length === 0) {
+        modelsList.innerHTML = '<p style="color:#64748b; font-size:13px;">No models found yet. Train one from the ML Integration panel.</p>';
+        return;
+      }
+
+      modelsList.innerHTML = characteristics
+        .map((characteristic) => {
+          const entry = registry[characteristic];
+          const prod = entry.production;
+          const history = entry.history || [];
+
+          const prodRow = prod
+            ? `
+            <div class="model-version-row production">
+              <div class="model-version-info">
+                <div class="model-version-name">${characteristic} <span class="training-badge">live</span></div>
+                <div class="model-version-meta">
+                  ${prod.trainedAt ? `Trained ${new Date(prod.trainedAt).toLocaleString()}` : 'Bundled with the app'}
+                  ${prod.metrics ? ` &middot; R2 ${prod.metrics.r2.toFixed(3)} &middot; MAE ${prod.metrics.mae.toFixed(3)}` : ''}
+                </div>
+              </div>
+            </div>
+          `
+            : `<div class="model-version-row"><div class="model-version-info"><div class="model-version-name">${characteristic}</div><div class="model-version-meta">No live model</div></div></div>`;
+
+          const historyRows = history
+            .map(
+              (v) => `
+            <div class="model-version-row">
+              <div class="model-version-info">
+                <div class="model-version-name">${characteristic}</div>
+                <div class="model-version-meta">
+                  Replaced ${new Date(v.replacedAt).toLocaleString()}
+                  ${v.metrics ? ` &middot; R2 ${v.metrics.r2.toFixed(3)} &middot; MAE ${v.metrics.mae.toFixed(3)}` : ''}
+                </div>
+              </div>
+              <button class="vc-restore-btn model-restore-btn" data-characteristic="${characteristic}" data-version-id="${v.id}">Restore</button>
+            </div>
+          `
+            )
+            .join('');
+
+          return `<div class="model-versions-group">${prodRow}${historyRows}</div>`;
+        })
+        .join('');
+
+      modelsList.querySelectorAll('.model-restore-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const characteristic = btn.dataset.characteristic;
+          const versionId = btn.dataset.versionId;
+          if (!confirm(`Restore this earlier ${characteristic} model? The current live model will be archived, not deleted.`)) return;
+
+          btn.disabled = true;
+          btn.textContent = 'Restoring...';
+          try {
+            await window.trainingAPI.restore(characteristic, versionId);
+            await renderModelVersions();
+          } catch (e) {
+            alert(`Failed to restore: ${e.message || e}`);
+            btn.disabled = false;
+            btn.textContent = 'Restore';
+          }
+        });
+      });
+    };
+
+    if (tabProjects && tabModels) {
+      tabProjects.addEventListener('click', () => {
+        tabProjects.classList.add('active');
+        tabModels.classList.remove('active');
+        projectsTab.classList.remove('hidden');
+        modelsTab.classList.add('hidden');
+      });
+      tabModels.addEventListener('click', () => {
+        tabModels.classList.add('active');
+        tabProjects.classList.remove('active');
+        modelsTab.classList.remove('hidden');
+        projectsTab.classList.add('hidden');
+        renderModelVersions();
+      });
     }
   }
 }

@@ -1,6 +1,11 @@
 /**
  * CWE location results rendering component
  */
+function getCweLink(cweId) {
+  if (!cweId || cweId === 'CWE not mapped' || cweId === 'N/A') return cweId;
+  return `<span class="vuln-id">${cweId}</span>`;
+}
+
 export function renderCweLocationResults(resultsByCwe) {
   console.log('[renderer] renderCweLocationResults called', resultsByCwe);
   
@@ -13,8 +18,9 @@ export function renderCweLocationResults(resultsByCwe) {
     if (!hits || hits.length === 0) {
       return `
         <div class="result-card cwe-location-card">
-          <div class="card-header">
-            <span class="vuln-id">${cweId}</span>
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>${getCweLink(cweId)}</div>
+            ${cweId && cweId !== 'CWE not mapped' && cweId !== 'N/A' ? `<button class="btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="event.stopPropagation(); window.openCweTab('${cweId}')">View Details</button>` : ''}
           </div>
           <div class="no-issues">No matching source locations were found for ${cweId}.</div>
         </div>
@@ -23,9 +29,12 @@ export function renderCweLocationResults(resultsByCwe) {
 
     return `
       <div class="result-card cwe-location-card">
-        <div class="card-header">
-          <span class="vuln-id">${cweId}</span>
-          <span class="severity info">${hits.length} matches</span>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            ${getCweLink(cweId)}
+            <span class="severity info">${hits.length} matches</span>
+          </div>
+          ${cweId && cweId !== 'CWE not mapped' && cweId !== 'N/A' ? `<button class="btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="event.stopPropagation(); window.openCweTab('${cweId}')">View Details</button>` : ''}
         </div>
         ${hits.map(hit => renderCWELocationHit(hit)).join('')}
       </div>

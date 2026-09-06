@@ -4,6 +4,7 @@ import { exec } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { getBinaryPath } from '../utils/binary-path';
 import { runCweLocate } from '../services/cwe-scanner';
+import { getProductionDir, ensureSeeded } from '../services/model-store';
 
 export function registerScanHandlers() {
   // Handler to run OpenGrep (SAST)
@@ -61,10 +62,13 @@ export function registerScanHandlers() {
 
   // Handler to run ML predictions
   ipcMain.handle('scan:ml-predict', async (event, featuresData) => {
+    await ensureSeeded();
+    const modelsDir = getProductionDir();
+
     return new Promise((resolve, reject) => {
       const pythonScriptPath = path.join(app.getAppPath(), 'ml_models', 'predict.py');
       const args = JSON.stringify(featuresData).replace(/"/g, '\\"');
-      
+
       const commonPaths = [
         'py', 'python', 'python3',
         path.join(app.getAppPath(), 'python-path.txt'), // Check if user provided a custom path file
@@ -105,7 +109,7 @@ export function registerScanHandlers() {
         }
 
         const cmd = commandsToTry[index];
-        const command = `"${cmd}" "${pythonScriptPath}" "${args}"`;
+        const command = `"${cmd}" "${pythonScriptPath}" "${args}" "${modelsDir}"`;
         
         exec(command, (error, stdout, stderr) => {
           const isWindowsStoreAliasError = stderr && stderr.includes("Python was not found");
