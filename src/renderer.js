@@ -8,6 +8,7 @@ import { renderRecentProjects } from './components/recent-projects';
 import { initDOMReferences } from './utils/dom-references';
 import { initComponents } from './components/index.js';
 import { initApp } from './app.js';
+import './utils/cwe-utils.js';
 
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -6,7 +6,8 @@ let state = {
   activeTab: null,
   openTabs: [], // { path, name, content, originalContent, isDirty }
   activeFolderPath: null, // tracking clicked folders for creation context
-  currentProjectPath: null
+  currentProjectPath: null,
+  lastScanResult: null // { projectPath, projectName, timestamp, sastFindings, scaFindings, mlPredictions }
 };
 
 export function initIDEState() {
@@ -15,7 +16,8 @@ export function initIDEState() {
     activeTab: null,
     openTabs: [],
     activeFolderPath: null,
-    currentProjectPath: null
+    currentProjectPath: null,
+    lastScanResult: null
   };
 }
 
@@ -42,6 +44,12 @@ export function setActiveFolderPath(path) { state.activeFolderPath = path; }
 
 export function getCurrentProjectPath() { return state.currentProjectPath; }
 export function setCurrentProjectPath(path) { state.currentProjectPath = path; }
+
+export function getLastScanResult() { return state.lastScanResult; }
+export function setLastScanResult(result) { state.lastScanResult = result; }
+export function updateLastScanResult(updates) {
+  state.lastScanResult = { ...(state.lastScanResult || {}), ...updates };
+}
 
 export function findTab(filePath) {
   return state.openTabs.find(t => t.path === filePath);

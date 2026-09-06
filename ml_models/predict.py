@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+import glob
 import joblib
 import pandas as pd
 
@@ -15,16 +16,18 @@ def main():
         print(json.dumps({"error": f"Invalid JSON: {str(e)}"}))
         return
 
-    models_dir = os.path.dirname(os.path.abspath(__file__))
-    model_files = [
-        "Access Control_random_forest_model.pkl",
-        "Integrity_random_forest_model.pkl",
-        "Maintainability_random_forest_model.pkl",
-        "availability_random_forest_model.pkl",
-        "confidentiality_random_forest_model.pkl",
-        "security_random_forest_model.pkl",
-        "non-repudiation_random_forest_model.pkl"
-    ]
+    # Models directory defaults to this script's own folder (the original,
+    # bundled-only behavior) but is normally passed explicitly by
+    # scan-handlers.js pointing at the writable userData model store, so
+    # promoted/restored models are picked up without touching this script.
+    models_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.dirname(os.path.abspath(__file__))
+
+    # Discovered dynamically instead of a fixed list, so a newly trained
+    # characteristic (e.g. Usability, which has no bundled model today)
+    # is served as soon as it's promoted, with no code change here.
+    model_files = sorted(
+        os.path.basename(p) for p in glob.glob(os.path.join(models_dir, "*_random_forest_model.pkl"))
+    )
 
     results = {}
     for model_file in model_files:

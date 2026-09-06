@@ -32,6 +32,13 @@ export class ActivityBar {
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
           </button>
+          <button class="activity-btn" title="Train ML Model" id="train-model-activity-btn" data-action="train-model">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+              <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+            </svg>
+          </button>
         </div>
         <div class="bottom-icons">
           <button class="activity-btn" title="Theme" data-action="theme">

@@ -3,6 +3,7 @@
  */
 import { closeTab, openFileInEditor } from '../../services/editor-service.js';
 import { getCurrentWorkspace } from '../../state/ide-state.js';
+import { exportScanFindingsCsv } from '../../services/export-service.js';
 
 export class ScanResultsPanel {
   static init(containerId) {
@@ -18,7 +19,10 @@ export class ScanResultsPanel {
       <div class="scan-results-panel" id="scan-results-panel" style="display: none;">
         <div class="results-header">
           <h2>Scan Results</h2>
-          <button id="btn-close-results" class="btn-secondary">Close Results</button>
+          <div class="results-header-actions">
+            <button id="btn-export-csv" class="btn-secondary">Export CSV</button>
+            <button id="btn-close-results" class="btn-secondary">Close Results</button>
+          </div>
         </div>
         
         <div id="scan-loading-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px;">
@@ -51,6 +55,10 @@ export class ScanResultsPanel {
   static attachEventListeners() {
     document.getElementById('btn-close-results')?.addEventListener('click', (e) => {
       closeTab('__SCAN_RESULTS__', e, true);
+    });
+
+    document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+      exportScanFindingsCsv();
     });
   }
 
@@ -88,6 +96,11 @@ export class ScanResultsPanel {
     }
   }
 
+  static getCweLink(cweId) {
+    if (!cweId || cweId === 'CWE not mapped' || cweId === 'N/A') return cweId;
+    return `<span class="vuln-id">${cweId}</span>`;
+  }
+
   static renderSASTResults(cweIssues) {
     const container = document.getElementById('sast-results-container');
     if (!container) return;
@@ -99,9 +112,12 @@ export class ScanResultsPanel {
 
     container.innerHTML = cweIssues.map(hit => `
       <div class="result-card sast-card clickable" data-file="${hit.path}" data-line="${hit.start?.line || ''}">
-        <div class="card-header">
-          <span class="severity warning">Warning</span>
-          <span class="vuln-id">${hit.CweID}</span>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span class="severity warning">Warning</span>
+            ${this.getCweLink(hit.CweID)}
+          </div>
+          ${hit.CweID && hit.CweID !== 'CWE not mapped' && hit.CweID !== 'N/A' ? `<button class="btn-secondary" style="font-size: 11px; padding: 4px 8px; z-index: 10; position: relative;" onclick="event.stopPropagation(); window.openCweTab('${hit.CweID}')">View Details</button>` : ''}
         </div>
         <p class="file-path">File: ${hit.path} (Line: ${hit.start?.line || 'unknown'})</p>
         <p class="vuln-desc"><b>Reason:</b> ${hit.extra?.message || 'No reason provided by the OpenGrep rule.'}</p>
@@ -127,9 +143,12 @@ export class ScanResultsPanel {
 
     container.innerHTML = cweIssues.map(vuln => `
       <div class="result-card sca-card">
-        <div class="card-header">
-          <span class="severity ${vuln.Severity ? vuln.Severity.toLowerCase() : 'low'}">${vuln.Severity || 'UNKNOWN'}</span>
-          <span class="vuln-id">${vuln.CweID}</span>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span class="severity ${vuln.Severity ? vuln.Severity.toLowerCase() : 'low'}">${vuln.Severity || 'UNKNOWN'}</span>
+            ${this.getCweLink(vuln.CweID)}
+          </div>
+          ${vuln.CweID && vuln.CweID !== 'CWE not mapped' && vuln.CweID !== 'N/A' ? `<button class="btn-secondary" style="font-size: 11px; padding: 4px 8px;" onclick="event.stopPropagation(); window.openCweTab('${vuln.CweID}')">View Details</button>` : ''}
         </div>
         <p class="file-path">Package: <b>${vuln.PkgName}</b> (Installed: ${vuln.InstalledVersion})</p>
         <p class="vuln-desc"><b>Reason:</b> ${vuln.Title || vuln.Description || 'No reason provided by Trivy.'}</p>

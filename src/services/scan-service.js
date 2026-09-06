@@ -6,7 +6,7 @@ import { MlResultsPanel } from '../components/ml-results/ml-results-panel.js';
 import { WelcomeScreen } from '../components/welcome-screen/welcome-screen.js';
 import { StatusBar } from '../components/status-bar/status-bar.js';
 import { collectCweIds, getUniqueCweIds } from '../utils/cwe-utils.js';
-import { getCurrentWorkspace, addTab, setActiveTab } from '../state/ide-state.js';
+import { getCurrentWorkspace, addTab, setActiveTab, setLastScanResult, updateLastScanResult } from '../state/ide-state.js';
 import { renderTabs } from '../components/tabs.js';
 import { openWorkspace } from './workspace-service.js';
 import { openScanResultsTab } from './editor-service.js';
@@ -71,6 +71,15 @@ export async function performScan() {
     ScanResultsPanel.renderSASTResults(sastCweIssuesArray);
     ScanResultsPanel.renderSCAResults(cweIssuesArray, trivyVulnerabilities.length);
     ScanResultsPanel.updateSummary(sastCweIssuesArray.length, cweIssuesArray.length);
+
+    setLastScanResult({
+      projectPath: projectFolder,
+      projectName: projectFolder.split(/[\\/]/).pop(),
+      timestamp: Date.now(),
+      sastFindings: sastCweIssuesArray,
+      scaFindings: cweIssuesArray,
+      mlPredictions: null
+    });
 
     // Handle CWE location
     await handleCWELocation(projectFolder, cweIssuesArray);
@@ -173,8 +182,9 @@ function calculateCweValues(sastIssues, scaIssues) {
         
         // Render UI
         renderTabs();
-        
+
         MlResultsPanel.render(result);
+        updateLastScanResult({ mlPredictions: result });
       })
       .catch(err => {
         console.error("ML Prediction failed:", err);

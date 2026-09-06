@@ -15,6 +15,29 @@ export function initApp() {
   if (!window.scannerAPI) {
     window.scannerAPI = ScannerAPI.createMock();
   }
+  if (!window.trainingAPI) {
+    console.log('app.js: window.trainingAPI missing (not running under Electron preload) - training UI will be disabled');
+    window.trainingAPI = {
+      selectDataset: async () => null,
+      describeDataset: async () => { throw new Error('Training is only available inside the desktop app.'); },
+      start: async () => { throw new Error('Training is only available inside the desktop app.'); },
+      cancel: async () => false,
+      listVersions: async () => ({}),
+      promote: async () => { throw new Error('Training is only available inside the desktop app.'); },
+      discard: async () => false,
+      restore: async () => { throw new Error('Training is only available inside the desktop app.'); },
+      revealLog: async () => { throw new Error('Training is only available inside the desktop app.'); },
+      readLog: async () => '',
+      onProgress: () => () => {},
+    };
+  }
+  if (!window.exportAPI) {
+    console.log('app.js: window.exportAPI missing (not running under Electron preload) - export will be disabled');
+    window.exportAPI = {
+      exportCSV: async () => { throw new Error('Export is only available inside the desktop app.'); },
+      exportPDF: async () => { throw new Error('Export is only available inside the desktop app.'); },
+    };
+  }
 
   // Set up event listeners
   setupEventListeners();
