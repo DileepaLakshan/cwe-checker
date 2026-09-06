@@ -5,6 +5,8 @@ import { getDOM } from '../utils/dom-references';
 import { getActiveTab, getOpenTabs } from '../state/ide-state';
 import { switchTab, closeTab } from '../services/editor-service';
 
+import { renderCweDetailsTab } from '../utils/cwe-utils';
+
 export function renderTabs() {
   const tabsBar = getDOM().tabsBar;
   if (!tabsBar) return;
@@ -22,6 +24,8 @@ export function renderTabs() {
     showScanResultsScreen();
   } else if (activeTab === '__ML_RESULTS__') {
     showMlResultsScreen();
+  } else if (activeTab && activeTab.startsWith('__CWE_DETAILS_')) {
+    showCweDetailsScreen(activeTab);
   } else {
     showEditorScreen();
   }
@@ -75,6 +79,7 @@ function showWelcomeScreen() {
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
   if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
+  if (dom.cweDetailsComponent) dom.cweDetailsComponent.style.display = 'none';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
 }
@@ -85,6 +90,7 @@ function showEditorScreen() {
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
   if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
+  if (dom.cweDetailsComponent) dom.cweDetailsComponent.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'flex';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'flex';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'flex';
@@ -96,6 +102,7 @@ export function showScanResultsScreen() {
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
   if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
+  if (dom.cweDetailsComponent) dom.cweDetailsComponent.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'block';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
@@ -107,7 +114,24 @@ export function showMlResultsScreen() {
   if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
   if (dom.editorPanel) dom.editorPanel.style.display = 'none';
   if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
+  if (dom.cweDetailsComponent) dom.cweDetailsComponent.style.display = 'none';
   if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'block';
   if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
   if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
+}
+
+function showCweDetailsScreen(activeTab) {
+  const dom = getDOM();
+  if (dom.dynamicView) dom.dynamicView.style.display = 'flex';
+  if (dom.welcomeScreen) dom.welcomeScreen.style.display = 'none';
+  if (dom.editorPanel) dom.editorPanel.style.display = 'none';
+  if (dom.resultsPanel) dom.resultsPanel.style.display = 'none';
+  if (dom.mlResultsPanel) dom.mlResultsPanel.style.display = 'none';
+  if (dom.cweDetailsComponent) dom.cweDetailsComponent.style.display = 'block';
+  if (dom.statusLineCol) dom.statusLineCol.style.display = 'none';
+  if (dom.statusSaveBtn) dom.statusSaveBtn.style.display = 'none';
+
+  // Render the specific CWE
+  const cweId = activeTab.replace('__CWE_DETAILS_', '').replace('__', '');
+  renderCweDetailsTab(cweId);
 }

@@ -91,6 +91,19 @@
   color: #8b949e;
 }
 
+.cwe-mitre-link {
+  color: #58a6ff;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 10;
+}
+
+.cwe-mitre-link:hover {
+  text-decoration: underline;
+  color: #79c0ff;
+}
+
 .severity {
   padding: 3px 8px;
   border-radius: 3px;
